@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Serene · Facial Animation Studio</title>
+<link rel="stylesheet" href="css/studio.css">
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head>
+<body class="dark">
+<div id="app">
+  <!-- ============ top bar ============ -->
+  <header id="top">
+    <div class="brand"><span class="dot"></span><b>Serene</b><span class="sub">Facial Animation Studio</span></div>
+    <button class="icon mob" id="btnLeft" title="표정 패널">☺</button>
+    <div class="group">
+      <label class="mini">카메라</label>
+      <div class="seg" id="camViews">
+        <button data-v="front">정면</button><button data-v="side">측면</button><button data-v="back">후면</button><button data-v="q45">45°</button><button data-v="face">얼굴</button><button data-v="full">전체</button>
+      </div>
+      <button class="tog" id="btnAutoRot" title="자동 회전">⟳</button>
+      <button id="btnCamReset" title="카메라 초기화">⌖</button>
+    </div>
+    <div class="group">
+      <label class="mini">조명</label>
+      <select id="selLight">
+        <option value="studio">스튜디오 소프트</option><option value="beauty">뷰티 (버터플라이)</option><option value="rembrandt">렘브란트</option><option value="rim">드라마틱 림</option><option value="day">자연광</option>
+      </select>
+      <button class="tog" id="btnBg" title="밝은/어두운 배경">◐</button>
+    </div>
+    <div class="group">
+      <label class="mini">모델</label>
+      <select id="selTex" title="텍스처 해상도"></select>
+      <select id="selQuality" title="렌더링 품질"><option value="auto">자동 품질</option><option value="high">고사양</option><option value="low">저사양</option></select>
+      <button id="btnCalib" title="얼굴 특징점 캘리브레이션">캘리브레이션</button>
+      <button id="btnExport" title="리그·블렌드셰이프 포함 GLB 내보내기">GLB ⤓</button>
+    </div>
+    <div class="group right">
+      <select id="selShot" title="스크린샷 배율"><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select>
+      <button id="btnShot" title="고해상도 스크린샷">📷</button>
+      <button class="tog" id="btnRec" title="캔버스 녹화 (오디오 파일·마이크 음성 포함)">● REC</button>
+      <button id="btnRecTab" title="탭 녹화 (브라우저 음성 합성 소리 포함)">⦿ 탭</button>
+      <button id="btnHideUI" title="UI 숨기기 (H)">UI</button>
+      <button id="btnFull" title="전체 화면">⛶</button>
+    </div>
+    <button class="icon mob" id="btnRight" title="정밀 제어">⚙</button>
+  </header>
+
+  <!-- ============ left: emotions ============ -->
+  <aside id="left" class="panel">
+    <section>
+      <h3>감정 · 표정 <span class="hint" id="mixHint">클릭하여 전환</span></h3>
+      <div class="row"><label class="switch"><input type="checkbox" id="chkMix"><span></span></label><span class="lbl">혼합 모드</span></div>
+      <div id="exprGrid" class="exprgrid"></div>
+      <div id="mixList"></div>
+      <div class="slider"><label>표정 강도 <output id="oInt">100%</output></label><input type="range" id="rngInt" min="0" max="100" value="100"></div>
+      <div class="slider"><label>전환 시간 <output id="oTrans">0.6s</output></label><input type="range" id="rngTrans" min="5" max="250" value="60"></div>
+    </section>
+    <section>
+      <h3>생체 움직임</h3>
+      <div class="chk"><label class="switch"><input type="checkbox" id="chkBlink" checked><span></span></label>자연스러운 눈 깜빡임</div>
+      <div class="chk"><label class="switch"><input type="checkbox" id="chkHead" checked><span></span></label>미세한 고개 움직임 · 끄덕임</div>
+      <div class="chk"><label class="switch"><input type="checkbox" id="chkBreath" checked><span></span></label>호흡</div>
+      <div class="chk"><label class="switch"><input type="checkbox" id="chkMicro" checked><span></span></label>미세 표정 변화</div>
+      <div class="sel"><label>시선</label><select id="selGaze"><option value="camera">사용자(카메라) 바라보기</option><option value="pointer">마우스 따라보기</option><option value="wander">자유 시선</option><option value="off">고정</option></select></div>
+    </section>
+    <section>
+      <h3>자동 감정 표현</h3>
+      <div class="chk"><label class="switch"><input type="checkbox" id="chkAutoEmo" checked><span></span></label>문장 분석으로 표정 자동 적용</div>
+      <div class="sel"><label>분석기</label><select id="selAnalyzer"><option value="rules">내장 규칙 (API 없음)</option><option value="ai">AI 엔드포인트</option></select></div>
+      <input type="text" id="aiEndpoint" class="hidden" placeholder="https://your-server/emotion (키는 서버에 보관)">
+      <div id="emoReadout" class="readout">—</div>
+    </section>
+  </aside>
+
+  <!-- ============ center viewport ============ -->
+  <main id="view">
+    <canvas id="c"></canvas>
+    <div id="hud"><span id="fps">— fps</span><span id="hudVis">viseme: —</span><span id="hudEmo"></span><span id="hudMode"></span></div>
+    <div id="loading"><div class="lbox"><div class="ltitle">Serene Facial Animation Studio</div><div class="bar"><i id="lbar"></i></div><div id="ltext">초기화 중…</div></div></div>
+    <div id="toast"></div>
+    <div id="calib" class="hidden">
+      <div class="calibbar">
+        <b>얼굴 특징점 캘리브레이션</b><span class="hint">점을 드래그해 실제 눈·입술·눈썹 위치에 맞춘 뒤 ‘리그 재생성’을 누르세요.</span>
+        <button id="calApply" class="primary">리그 재생성</button><button id="calReset">기본값</button><button id="calExport">JSON 저장</button><label class="btn">JSON 불러오기<input type="file" id="calImport" accept=".json" hidden></label><button id="calClose">닫기</button>
+      </div>
+      <svg id="calSvg"></svg>
+    </div>
+  </main>
+
+  <!-- ============ right: facial controller ============ -->
+  <aside id="right" class="panel">
+    <section>
+      <h3>얼굴 정밀 제어 <button id="btnReset" class="small">Reset</button></h3>
+      <div id="ctrlSliders"></div>
+    </section>
+    <section>
+      <h3>사용자 프리셋</h3>
+      <div class="row"><input type="text" id="presetName" placeholder="프리셋 이름"><button id="btnSavePreset">저장</button></div>
+      <div id="presetList"></div>
+    </section>
+    <section>
+      <details><summary>ARKit 52 블렌드셰이프 (원시 값)</summary><div id="rawSliders"></div></details>
+    </section>
+    <section class="info" id="rigInfo"></section>
+  </aside>
+
+  <!-- ============ bottom: speech ============ -->
+  <footer id="bottom">
+    <div class="speech-main">
+      <textarea id="txt" rows="2">안녕하세요. 정말 만나서 반가워요! 오늘은 제 표정과 목소리를 보여 드릴게요.</textarea>
+      <div class="samples">
+        <button data-s="ko">한국어</button><button data-s="ko2">슬픔</button><button data-s="ko3">놀람</button><button data-s="ko4">생각</button><button data-s="en">English</button><button data-s="ja">日本語</button>
+      </div>
+    </div>
+    <div class="speech-ctl">
+      <div class="transport">
+        <button id="btnSpeak" class="primary">▶ 말하기</button><button id="btnPause">❚❚</button><button id="btnStop">■</button>
+      </div>
+      <div class="sel"><label>모드</label><select id="selMode">
+        <option value="tts">브라우저 음성 (근사 립싱크)</option>
+        <option value="audio">오디오 파일 (분석/정확 립싱크)</option>
+        <option value="mic">마이크 (실시간 분석)</option>
+        <option value="external">외부 TTS 서버 (정확 립싱크)</option>
+      </select></div>
+      <div class="sel" id="boxVoice"><label>음성</label><select id="selVoice"></select></div>
+      <div class="files hidden" id="boxAudio"><label class="btn">오디오 열기<input type="file" id="fileAudio" accept="audio/*" hidden></label><label class="btn">비즘 JSON<input type="file" id="fileVis" accept=".json" hidden></label><span id="audioName" class="hint"></span></div>
+      <div class="files hidden" id="boxExt"><input type="text" id="extEndpoint" placeholder="https://your-server/tts"></div>
+    </div>
+    <div class="speech-sliders">
+      <div class="slider"><label>속도 <output id="oRate">1.0</output></label><input type="range" id="rngRate" min="50" max="200" value="100"></div>
+      <div class="slider"><label>높낮이 <output id="oPitch">1.0</output></label><input type="range" id="rngPitch" min="0" max="200" value="100"></div>
+      <div class="slider"><label>볼륨 <output id="oVol">100%</output></label><input type="range" id="rngVol" min="0" max="100" value="100"></div>
+      <div class="slider"><label>타이밍 보정 <output id="oCal">1.00</output></label><input type="range" id="rngCal" min="70" max="140" value="100" title="음성별 말하기 속도 차이 보정"></div>
+    </div>
+    <div class="lipmode"><span id="lipBadge" class="badge">대기</span><div id="visBar"></div></div>
+  </footer>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

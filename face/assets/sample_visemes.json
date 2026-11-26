@@ -1,0 +1,19 @@
+{
+  "_comment": "Example timed-viseme file for '오디오 파일' mode (accurate lip sync). Times in seconds. Also accepted: Azure Speech viseme events [{audioOffset(ms), visemeId}] and Rhubarb Lip Sync JSON {mouthCues:[...]}. Viseme ids: sil A EO E I O U EU MBP FV SS CH LN KG H TH W R",
+  "visemes": [
+    {"start":0.00,"end":0.10,"viseme":"sil"},
+    {"start":0.10,"end":0.24,"viseme":"A"},
+    {"start":0.24,"end":0.30,"viseme":"LN"},
+    {"start":0.30,"end":0.36,"viseme":"LN"},
+    {"start":0.36,"end":0.42,"viseme":"I"},
+    {"start":0.42,"end":0.52,"viseme":"EO"},
+    {"start":0.52,"end":0.58,"viseme":"KG"},
+    {"start":0.58,"end":0.64,"viseme":"H"},
+    {"start":0.64,"end":0.76,"viseme":"A"},
+    {"start":0.76,"end":0.83,"viseme":"SS"},
+    {"start":0.83,"end":0.95,"viseme":"E"},
+    {"start":0.95,"end":1.00,"viseme":"I"},
+    {"start":1.00,"end":1.16,"viseme":"O"},
+    {"start":1.16,"end":1.50,"viseme":"sil"}
+  ]
+}
