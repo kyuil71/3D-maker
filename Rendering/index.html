@@ -1110,7 +1110,7 @@ cvs.addEventListener('pointerup', e => {
     toast(pickMode === 'split' ? '앞쪽 경계를 지정했습니다' : '링 끝을 지정했습니다'); pickMode = null; applyUniforms(); renderTab(); persist(); return;
   }
   const pi = partAt(hit);
-  if (SIM.info?.pwrParts.has(pi) && !brush.on) { setPower(SIM.level + 1, true); return; }
+  if (SIM.mode) { if (SIM.info?.pwrParts.has(pi)) setPower(SIM.level + 1); else toast('작동 중에는 전원 버튼만 누를 수 있습니다 · 작동 탭을 다시 누르면 끝납니다'); return; }
   selectPart(pi, true);
 });
 function selectPart(i, fromModel) {
@@ -1182,8 +1182,9 @@ function renderTab() {
       <div style="height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);overflow:hidden"><div id="binFill" style="height:100%;width:${pct}%;background:var(--acc);transition:width .3s"></div></div>
       <div class="two" style="margin-top:10px"><button class="btn" id="dustReset">먼지 다시 뿌리기</button><button class="btn" id="binEmpty">먼지통 비우기</button></div>
       <h3>표시</h3>
-      <div class="chips"><button class="chip" id="dustToggle" aria-pressed="${SIM.dustOn}">먼지·공기 흐름</button><button class="chip" id="vibToggle" aria-pressed="${SIM.vib}">모터 진동</button></div>
-      <p class="hint">단계가 오를수록 빨아들이는 범위와 힘, 먼지통 안 회오리 속도가 커집니다. 전원을 끄면 먼지가 먼지통 바닥에 가라앉습니다. ${I && !meshesFor(RE.nozzle).length ? '노즐·먼지통 파트를 찾지 못해 모델 길이 방향 앞쪽 끝을 흡입구로 씁니다.' : ''}</p>`;
+      <div class="chips"><button class="chip" id="sndToggle" aria-pressed="${AU.on}">작동 사운드</button><button class="chip" id="vibToggle" aria-pressed="${SIM.vib}">모터 진동</button></div>
+      ${slider('sndVol', '소리 크기', AU.vol, 0, 1, .01)}
+      <p class="hint">작동 탭을 누르면 먼지가 새로 깔리고 처음부터 시작합니다. 작동 탭을 다시 누르면 작동 모드가 끝나고 먼지가 사라집니다. 단계가 오를수록 모터 소리가 높아지고, 빨아들이는 범위와 힘, 먼지통 안 회오리 속도가 커집니다. 전원을 끄면 모터가 서서히 멈추고 먼지가 먼지통 바닥에 가라앉습니다. ${I && !meshesFor(RE.nozzle).length ? '노즐·먼지통 파트를 찾지 못해 모델 길이 방향 앞쪽 끝을 흡입구로 씁니다.' : ''}</p>`;
   } else if (activeTab === 'model') {
     const ax = ['X', 'Y', 'Z'];
     b.innerHTML = `<h3>3D 모델 <small>${esc(modelInfo.name)}</small></h3>
@@ -1222,8 +1223,12 @@ function renderTab() {
       <p class="hint">작업 상태는 이 브라우저에도 자동으로 기억되어, 다시 열면 마지막 모델과 설정이 복원됩니다.</p>`;
   }
 }
-function switchTab(t) { activeTab = t; document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t)); renderTab(); $('#body').scrollTop = 0; }
-document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (b) switchTab(b.dataset.tab); });
+function switchTab(t, keepRun) { if (SIM.mode && t !== 'run' && !keepRun) exitRun(); activeTab = t; document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t)); renderTab(); $('#body').scrollTop = 0; }
+document.querySelector('.tabs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-tab]'); if (!b) return;
+  if (b.dataset.tab === 'run') { if (SIM.mode) { exitRun(); switchTab('parts'); toast('작동 모드를 끝냈습니다'); } else { enterRun(); switchTab('run', true); } return; }
+  switchTab(b.dataset.tab);
+});
 $('#fold').addEventListener('click', () => { document.body.classList.toggle('pclosed'); });
 let clip = null;
 const changed = (rerender = true) => { applyUniforms(); persist(); if (rerender) { const st = $('#body').scrollTop; renderTab(); $('#body').scrollTop = st; } };
@@ -1263,7 +1268,7 @@ $('#body').addEventListener('click', async e => {
   if (t.id === 'rotReset') { S.rot = [0, 0, 0]; fitModel(); computeSim(); setView(currentView, true); persist(); return; }
   if (d.lv) { setPower(+d.lv); return; }
   if (d.ledc) { SIM.led = d.ledc; applyPower(); return; }
-  if (t.id === 'dustToggle') { SIM.dustOn = !SIM.dustOn; writeDust(); air.visible = SIM.dustOn; inval(); return renderTab(); }
+  if (t.id === 'sndToggle') { AU.on = !AU.on; audioInit(); audioLevel(SIM.level, SIM.level); return renderTab(); }
   if (t.id === 'vibToggle') { SIM.vib = !SIM.vib; return renderTab(); }
   if (t.id === 'dustReset') { resetDust(); return toast('바닥에 먼지를 다시 뿌렸습니다'); }
   if (t.id === 'binEmpty') return emptyBin();
@@ -1283,6 +1288,7 @@ $('#body').addEventListener('input', e => {
   const map = {sMetal:'metal', sRough:'rough', sCoat:'coat', sOp:'op', sDet:'det', sAmt:'amt', sPatAmt:'patAmt'};
   if (map[t.id]) { p[map[t.id]] = v; t.nextElementSibling.textContent = v.toFixed(2); }
   else if (t.id === 'sScale') { p.scale = fromLog(v); t.nextElementSibling.textContent = (p.scale * 100).toFixed(1); }
+  else if (t.id === 'sndVol') { AU.vol = v; t.nextElementSibling.textContent = v.toFixed(2); audioLevel(SIM.level, SIM.level); return; }
   else if (t.id === 'brSize') { brush.size = v; t.nextElementSibling.textContent = v.toFixed(2); return; }
   else if (t.id === 'zSplit') { S.split = v; t.nextElementSibling.textContent = v.toFixed(2); }
   else if (t.id === 'zRing') { S.ring = v; t.nextElementSibling.textContent = v.toFixed(2); }
@@ -1318,7 +1324,7 @@ addEventListener('keydown', e => {
 });
 
 /* ───────── 작동 시뮬레이션: 전원 3단계 · LED · 먼지 흡입 ───────── */
-const SIM = {level:0, info:null, dustOn:true, vib:true, led:'#7fd4ff', collected:0, press:0};
+const SIM = {mode:false, level:0, info:null, dustOn:true, vib:true, led:'#7fd4ff', collected:0, press:0};
 const LEVELS = [{n:'꺼짐'}, {n:'1단', cap:.42, pull:1.3, w:7, air:.5}, {n:'2단', cap:.6, pull:2.4, w:11, air:.8}, {n:'3단', cap:.85, pull:4, w:16, air:1}];
 const LED_COLORS = [['#7fd4ff', '아이스 블루'], ['#ffffff', '화이트'], ['#7dffb0', '그린'], ['#ffb46b', '앰버'], ['#ff6b8a', '로즈']];
 const RE = {nozzle:/nozzle|dust.?bin|노즐|먼지통/i, filter:/filter.?mesh|filter|필터/i, led:/led|indicator|인디케이터/i, power:/power.?button|power|전원/i, icon:/icon|아이콘/i};
@@ -1382,9 +1388,89 @@ function applyPower() {
   $('#tPower').setAttribute('aria-pressed', lv > 0); $('#tPowerTxt').textContent = LEVELS[lv].n;
   inval(); if (activeTab === 'run') renderTab();
 }
-function setPower(lv, fromButton) {
+function setPower(lv, quiet) {
+  if (!SIM.mode) { enterRun(); switchTab('run', true); }
+  const prev = SIM.level;
   SIM.level = ((lv % 4) + 4) % 4; SIM.press = performance.now();
-  applyPower(); toast(SIM.level ? `${LEVELS[SIM.level].n} 작동` : '전원 꺼짐');
+  if (!quiet) { audioInit(); audioClick(); }
+  audioLevel(SIM.level, prev);
+  applyPower(); if (!quiet) toast(SIM.level ? `${LEVELS[SIM.level].n} 작동` : '전원 꺼짐');
+}
+function enterRun() {
+  SIM.mode = true; SIM.level = 0; audioInit(); audioLevel(0);
+  if (SIM.info) { resetDust(); airA.forEach(o => o.life = 0); }
+  applyPower(); writeDust(); inval();
+  toast('작동 모드 · 전원 버튼을 눌러 보세요');
+}
+function exitRun() {
+  SIM.level = 0; audioLevel(0); SIM.mode = false; air.material.opacity = 0;
+  applyPower(); writeDust(); holder.position.set(0, 0, 0); inval();
+}
+/* ───── 작동 사운드 (Web Audio로 합성) ───── */
+const AU = {ctx:null, on:true, vol:.6, ticks:0};
+const AUDIO_LV = [{f:0}, {f:185, w:2900, air:.32, af:850, g:.55}, {f:240, w:3550, air:.5, af:1250, g:.78}, {f:305, w:4350, air:.75, af:1750, g:1}];
+function audioInit() {
+  if (AU.ctx) { if (AU.ctx.state !== 'running') AU.ctx.resume().catch(() => {}); return; }
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(); AU.ctx = ctx;
+    const master = ctx.createGain(); master.gain.value = 0;
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    master.connect(comp).connect(ctx.destination);
+    // 핑크 노이즈 (공기 흐름·덜컹거림의 재료)
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = nb.getChannelData(0); let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; b0 = .99765 * b0 + w * .099046; b1 = .963 * b1 + w * .2965164; b2 = .57 * b2 + w * 1.0526913; d[i] = (b0 + b1 + b2 + w * .1848) * .11; }
+    const noise = ctx.createBufferSource(); noise.buffer = nb; noise.loop = true;
+    const airF = ctx.createBiquadFilter(); airF.type = 'bandpass'; airF.Q.value = .55; airF.frequency.value = 400;
+    const airHP = ctx.createBiquadFilter(); airHP.type = 'highpass'; airHP.frequency.value = 250;
+    const airG = ctx.createGain(); airG.gain.value = 0; noise.connect(airHP).connect(airF).connect(airG).connect(master);
+    const hiss = ctx.createBiquadFilter(); hiss.type = 'highpass'; hiss.frequency.value = 5200; const hissG = ctx.createGain(); hissG.gain.value = 0; noise.connect(hiss).connect(hissG).connect(master);
+    const rumF = ctx.createBiquadFilter(); rumF.type = 'lowpass'; rumF.frequency.value = 160; const rumG = ctx.createGain(); rumG.gain.value = 0; noise.connect(rumF).connect(rumG).connect(master);
+    // 모터: 기본음(톱니파) + 2배음 + 고음 휘슬
+    const m1 = ctx.createOscillator(); m1.type = 'sawtooth'; m1.frequency.value = 40;
+    const mLP = ctx.createBiquadFilter(); mLP.type = 'lowpass'; mLP.frequency.value = 400; mLP.Q.value = 2.5;
+    const m1G = ctx.createGain(); m1G.gain.value = 0; m1.connect(mLP).connect(m1G).connect(master);
+    const m2 = ctx.createOscillator(); m2.type = 'triangle'; m2.frequency.value = 80; const m2G = ctx.createGain(); m2G.gain.value = 0; m2.connect(m2G).connect(master);
+    const wh = ctx.createOscillator(); wh.type = 'sine'; wh.frequency.value = 600; const whG = ctx.createGain(); whG.gain.value = 0; wh.connect(whG).connect(master);
+    const wh2 = ctx.createOscillator(); wh2.type = 'sine'; wh2.frequency.value = 610; const wh2G = ctx.createGain(); wh2G.gain.value = 0; wh2.connect(wh2G).connect(master);
+    // 미세한 회전 흔들림
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 6.3; const lfoG = ctx.createGain(); lfoG.gain.value = 2.2; lfo.connect(lfoG); lfoG.connect(m1.frequency); lfoG.connect(wh.frequency);
+    const lfo2 = ctx.createOscillator(); lfo2.frequency.value = .37; const lfo2G = ctx.createGain(); lfo2G.gain.value = 40; lfo2.connect(lfo2G); lfo2G.connect(airF.frequency);
+    [noise, m1, m2, wh, wh2, lfo, lfo2].forEach(o => o.start());
+    Object.assign(AU, {master, nb, airF, airG, hissG, rumG, m1, m2, wh, wh2, m1G, m2G, whG, wh2G, mLP});
+  } catch { AU.ctx = null; }
+}
+function audioLevel(lv, prev = 0) {
+  if (!AU.ctx || !AU.master) return;
+  const t = AU.ctx.currentTime, L = AUDIO_LV[lv], up = lv > prev, tc = lv === 0 ? .9 : up ? .32 : .55, on = AU.on && SIM.mode;
+  AU.master.gain.cancelScheduledValues(t); AU.master.gain.setTargetAtTime(lv && on ? AU.vol : 0, t, lv ? .04 : 1.1);
+  const f = lv ? L.f : 35;
+  AU.m1.frequency.setTargetAtTime(f, t, tc); AU.m2.frequency.setTargetAtTime(f * 2.003, t, tc);
+  AU.wh.frequency.setTargetAtTime(lv ? L.w : 500, t, tc); AU.wh2.frequency.setTargetAtTime(lv ? L.w * 1.5 + 7 : 700, t, tc);
+  AU.m1G.gain.setTargetAtTime(lv ? .045 + .03 * L.g : 0, t, tc); AU.m2G.gain.setTargetAtTime(lv ? .03 * L.g : 0, t, tc);
+  AU.whG.gain.setTargetAtTime(lv ? .006 + .008 * L.g : 0, t, tc * 1.2); AU.wh2G.gain.setTargetAtTime(lv ? .0025 * L.g : 0, t, tc * 1.2);
+  AU.mLP.frequency.setTargetAtTime(lv ? 700 + L.f * 3.2 : 250, t, tc);
+  AU.airF.frequency.setTargetAtTime(lv ? L.af : 300, t, tc * 1.4); AU.airG.gain.setTargetAtTime(lv ? L.air : 0, t, tc * 1.5);
+  AU.hissG.gain.setTargetAtTime(lv ? .05 * L.g : 0, t, tc * 1.5); AU.rumG.gain.setTargetAtTime(lv ? .3 * L.g : 0, t, tc);
+  if (!lv) setTimeout(() => { if (!SIM.level && AU.ctx?.state === 'running') AU.ctx.suspend().catch(() => {}); }, 4500);
+  else if (AU.ctx.state !== 'running') AU.ctx.resume().catch(() => {});
+}
+function audioBurst(t, freq, q, gain, dur, to) {
+  const ctx = AU.ctx, s = ctx.createBufferSource(); s.buffer = AU.nb;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
+  const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + .0015); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(bp).connect(g).connect(to || ctx.destination); s.start(t, Math.random() * 1.5); s.stop(t + dur + .02);
+}
+function audioClick() {
+  if (!AU.ctx || !AU.on) return; const ctx = AU.ctx, t = ctx.currentTime + .005;
+  audioBurst(t, 3200, 4, .9 * AU.vol, .025); audioBurst(t + .06, 2400, 4, .6 * AU.vol, .02);
+  const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(260, t); o.frequency.exponentialRampToValueAtTime(120, t + .05);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.35 * AU.vol, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + .07);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .09);
+}
+function audioTick(size, soft) {
+  if (!AU.ctx || !AU.on || AU.ctx.state !== 'running' || AU.ticks > 4) return; AU.ticks++;
+  const t = AU.ctx.currentTime + Math.random() * .03, k = Math.min(1, size / .014);
+  audioBurst(t, 1800 + Math.random() * 4200 - k * 900, 2 + Math.random() * 4, (soft ? .05 : .12 + .25 * k) * AU.vol, .006 + k * .018, AU.master);
 }
 /* 먼지 입자 */
 const DUST_N = 650;
@@ -1409,7 +1495,7 @@ function resetDust() {
 function emptyBin() { const I = SIM.info; if (!I) return; D.forEach(d => { if (d.m >= 2) spawnFloor(d, I); }); SIM.collected = 0; writeDust(); inval(); if (activeTab === 'run') renderTab(); toast('먼지통을 비웠습니다'); }
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 function writeDust() {
-  dust.visible = SIM.dustOn && !!SIM.info;
+  dust.visible = SIM.mode && !!SIM.info; air.visible = SIM.mode;
   D.forEach((d, i) => { _q.setFromEuler(d.rot); _s.setScalar(d.s); _m.compose(d.p, _q, _s); dust.setMatrixAt(i, _m); });
   dust.instanceMatrix.needsUpdate = true;
 }
@@ -1427,6 +1513,9 @@ let lastT = performance.now();
 function simStep() {
   const now = performance.now(), dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
   const I = SIM.info; if (!I || !model) return false;
+  AU.ticks = 0;
+  if (!SIM.mode) { if (dust.visible || air.visible) { dust.visible = false; air.visible = false; ledGroup.children.forEach(sp => sp.material.opacity = 0); return true; } return false; }
+  air.visible = true;
   const lv = SIM.level, L = LEVELS[lv];
   let active = lv > 0;
   // 버튼 눌림
@@ -1456,7 +1545,7 @@ function simStep() {
         d.v.multiplyScalar(Math.pow(.2, dt)); const vmax = lv ? 1.2 + lv * .6 : 2; if (d.v.length() > vmax) d.v.setLength(vmax); d.p.addScaledVector(d.v, Math.min(dt, dist / Math.max(d.v.length(), 1e-4)));
         if (d.p.y < I.floor + d.s * .6) { d.p.y = I.floor + d.s * .6; d.v.y = 0; d.v.multiplyScalar(.6); if (!lv && d.v.lengthSq() < 1e-4) d.m = 0; }
         d.rot.x += d.spin.x * dt; d.rot.y += d.spin.y * dt; moving = true;
-        if (lv && dist < Math.max(I.mouthR, .05) * 1.1) { d.m = 2; d.u = 0; }
+        if (lv && dist < Math.max(I.mouthR, .05) * 1.1) { d.m = 2; d.u = 0; audioTick(d.s); }
       }
     } else if (d.m === 2) {                      // 노즐 → 먼지통 이동
       d.u += dt * (1.2 + lv * .9); const t0 = I.amin, t1 = I.f0 - .01;
@@ -1472,13 +1561,14 @@ function simStep() {
       d.rot.x += d.spin.x * dt * (lv ? 1 : 0); col++;
     }
   }
+  if (lv && col && Math.random() < dt * Math.min(30, col * .06) * (lv / 3)) audioTick(.004 + Math.random() * .01, true);
   if (col !== SIM.collected) { SIM.collected = col; if (activeTab === 'run') { const el = $('#binFill'); if (el) { el.style.width = (col / DUST_N * 100).toFixed(0) + '%'; $('#binTxt').textContent = Math.round(col / DUST_N * 100) + '%'; } } }
   if (moving) writeDust();
   return active || moving;
 }
 
 /* ───────── 시작 ───────── */
-window.__cmf = {S, U, THREE, get SIM() { return SIM; }, get D() { return D; }, setView, openFiles, exportGLB, saveProject, applyUniforms, renderTab, switchTab, setupModel, setMode, get model() { return model; }, renderer, scene, camera};
+window.__cmf = {S, U, THREE, get AU() { return AU; }, get SIM() { return SIM; }, get D() { return D; }, setView, openFiles, exportGLB, saveProject, applyUniforms, renderTab, switchTab, setupModel, setMode, get model() { return model; }, renderer, scene, camera};
 renderTab(); syncToggles(); resize();
 let last = null; try { last = JSON.parse(localStorage.getItem(LS + '.last') || 'null'); } catch {}
 let restored = false;
