@@ -49,7 +49,7 @@ body.pclosed #panel{transform:translateX(100%)}
 #fold{position:absolute;left:-38px;top:50%;transform:translateY(-50%);width:38px;height:72px;border:1px solid var(--line);border-right:0;border-radius:14px 0 0 14px;background:var(--panel);cursor:pointer;display:grid;place-items:center;color:var(--ink)}
 #fold svg{width:20px;height:20px;transition:transform .25s}
 body.pclosed #fold svg{transform:rotate(180deg)}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);padding:6px;flex:none}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--line);padding:6px;flex:none}
 .tabs button{min-height:56px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--mute);cursor:pointer;font-size:16px;border-radius:12px}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-selected=true]{color:var(--ink);font-weight:600;background:var(--panel2)}
@@ -130,6 +130,7 @@ body.pclosed #toast{left:50vw}
       <button data-v="front" aria-pressed="false">프론트</button>
       <button data-v="quad" aria-pressed="false">4뷰</button>
     </div>
+    <button class="pill" id="tPower" aria-pressed="false" title="전원 · 단계 바꾸기 (P)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3.5v8"/><path d="M7 6.3a7.5 7.5 0 1 0 10 0"/></svg><span id="tPowerTxt">꺼짐</span></button>
     <button class="pill" id="tParts" aria-pressed="false" title="파트를 색으로 구분해 보기">파트 보기</button>
     <button class="pill" id="tOrig" aria-pressed="false" title="모델 원본 재질 보기">원본</button>
   </div>
@@ -140,6 +141,7 @@ body.pclosed #toast{left:50vw}
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="parts" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="5.5"/><circle cx="15" cy="15" r="5.5"/></svg>파트</button>
     <button role="tab" data-tab="presets" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>프리셋</button>
+    <button role="tab" data-tab="run" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5v8"/><path d="M7 6.3a7.5 7.5 0 1 0 10 0"/></svg>작동</button>
     <button role="tab" data-tab="model" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>모델</button>
     <button role="tab" data-tab="save" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M4.5 15.5v3a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>저장</button>
   </nav>
@@ -328,6 +330,7 @@ const U = {
   uAxis:{value:new THREE.Vector3(1,0,0)}, uAMin:{value:-1}, uAMax:{value:1},
   uSplit:{value:.46}, uRing:{value:.02}, uDark:{value:0}, uZoneMode:{value:1},
   uOrig:{value:0}, uDebug:{value:0}, uHi:{value:-1}, uHiT:{value:0},
+  uLedPart:{value:-1}, uIconPart:{value:-1}, uLedCut:{value:-99}, uLedCol:{value:new THREE.Color('#7fd4ff')}, uLedI:{value:0}, uIconI:{value:0},
 };
 const tmpC = new THREE.Color();
 function writeParts() {
@@ -347,6 +350,7 @@ const GLSL_COMMON = `
 uniform highp sampler2D uParts; uniform highp sampler2DArray uImgs; uniform sampler2D uMask;
 uniform float uHasMask, uSlot, uZoneMode, uCount;
 uniform vec3 uAxis; uniform float uAMin, uAMax, uSplit, uRing, uDark, uOrig, uDebug, uHi, uHiT;
+uniform float uLedPart, uIconPart, uLedCut, uLedI, uIconI; uniform vec3 uLedCol;
 varying vec3 vWPos; varying vec3 vWNrm; varying vec2 vZUv;
 vec4 zP(int k, int i){ return texelFetch(uParts, ivec2(k, i), 0); }
 float zHash(vec3 p){ p = fract(p*.3183099 + .1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
@@ -490,6 +494,9 @@ function patchShader(sh, pass, mu, srcT, slotU) {
           roughnessFactor = clamp(roughnessFactor - .1 * fa, .02, 1.);
         }
       }`)
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      if (uLedI > 0. && zS.pi == int(uLedPart + .5) && dot(vWPos, uAxis) < uLedCut) totalEmissiveRadiance += uLedCol * uLedI;
+      if (uIconI > 0. && zS.pi == int(uIconPart + .5)) totalEmissiveRadiance += uLedCol * uIconI;`)
     .replace('#include <lights_physical_fragment>', lights)
     .replace('#include <opaque_fragment>', pass === 1 ? `
       float zFr = pow(1. - abs(dot(normal, normalize(vViewPosition))), 3.);
@@ -638,7 +645,7 @@ function setupModel(root, info) {
     setMode(mode, {keepParts:info.isDefault && info.keepParts});
     S.rot = info.isDefault ? keepRot : [0, 0, 0];
   }
-  fitModel(); applyUniforms(); S.sel = 0;
+  fitModel(); applyUniforms(); S.sel = 0; computeSim();
   setView(currentView === 'quad' ? 'persp' : currentView, true); renderTab();
 }
 const pickZones = j => { const o = {}; for (const k of ['axis', 'sign', 'split', 'ring', 'dark', 'bg']) if (j[k] !== undefined) o[k] = j[k]; return o; };
@@ -1068,6 +1075,7 @@ let hiT0 = 0;
 renderer.setAnimationLoop(() => {
   if (anim) anim();
   if (hiT0) { const k = (performance.now() - hiT0) / 900; U.uHiT.value = k >= 1 ? 0 : Math.sin(Math.min(1, k) * Math.PI); if (k >= 1) hiT0 = 0; dirty = 2; }
+  if (typeof simStep === 'function' && simStep()) dirty = Math.max(dirty, 1);
   const moved = currentView !== 'quad' && controls.update();
   if (moved || dirty > 0) { render(); if (dirty > 0) dirty--; }
 });
@@ -1101,7 +1109,9 @@ cvs.addEventListener('pointerup', e => {
     if (pickMode === 'split') S.split = +t.toFixed(3); else S.ring = +Math.max(0, t - S.split).toFixed(3);
     toast(pickMode === 'split' ? '앞쪽 경계를 지정했습니다' : '링 끝을 지정했습니다'); pickMode = null; applyUniforms(); renderTab(); persist(); return;
   }
-  selectPart(partAt(hit), true);
+  const pi = partAt(hit);
+  if (SIM.info?.pwrParts.has(pi) && !brush.on) { setPower(SIM.level + 1, true); return; }
+  selectPart(pi, true);
 });
 function selectPart(i, fromModel) {
   S.sel = i; flash(i);
@@ -1161,6 +1171,19 @@ function renderTab() {
       <h3>내 프리셋 <small>${myPresets.length}개</small></h3>
       <div class="cw">${myPresets.map((c, i) => row(c.name, c.parts, `data-my="${i}"`, `data-del="${i}"`)).join('') || '<p class="hint">현재 조합을 저장하면 여기에 쌓입니다. 파트 이름이 같으면 다른 모델에도 적용됩니다.</p>'}</div>
       <div class="hexrow"><input type="text" id="psName" placeholder="프리셋 이름" maxlength="30"><button class="chip" id="psSave">현재 조합 저장</button></div>`;
+  } else if (activeTab === 'run') {
+    const I = SIM.info, pct = Math.round(SIM.collected / DUST_N * 100);
+    b.innerHTML = `<h3>전원 · 흡입 단계 <small>${LEVELS[SIM.level].n}</small></h3>
+      <div class="two" style="grid-template-columns:repeat(4,1fr)">${LEVELS.map((l, i) => `<button class="btn" data-lv="${i}" aria-pressed="${SIM.level === i}" style="justify-content:center;padding:0">${l.n}</button>`).join('')}</div>
+      <p class="hint">${I?.pwrMeshes.length ? '모델의 전원 버튼을 탭해도 꺼짐 → 1단 → 2단 → 3단 순서로 바뀝니다. (키보드 P)' : '이 모델에서는 전원 버튼 파트를 찾지 못했습니다. 위 단계 버튼이나 상단 전원 버튼을 쓰세요.'}</p>
+      <h3>LED <small>${I?.dots.length ? `점 ${I.dots.length}개 · 단계만큼 켜짐` : '없음'}</small></h3>
+      <div class="sw" style="grid-template-columns:repeat(5,minmax(0,1fr))">${LED_COLORS.map(([c, n]) => `<button data-ledc="${c}" title="${n}" aria-label="${n}" aria-pressed="${SIM.led === c}" style="background:${c}"></button>`).join('')}</div>
+      <h3>먼지통 <small id="binTxt">${pct}%</small></h3>
+      <div style="height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);overflow:hidden"><div id="binFill" style="height:100%;width:${pct}%;background:var(--acc);transition:width .3s"></div></div>
+      <div class="two" style="margin-top:10px"><button class="btn" id="dustReset">먼지 다시 뿌리기</button><button class="btn" id="binEmpty">먼지통 비우기</button></div>
+      <h3>표시</h3>
+      <div class="chips"><button class="chip" id="dustToggle" aria-pressed="${SIM.dustOn}">먼지·공기 흐름</button><button class="chip" id="vibToggle" aria-pressed="${SIM.vib}">모터 진동</button></div>
+      <p class="hint">단계가 오를수록 빨아들이는 범위와 힘, 먼지통 안 회오리 속도가 커집니다. 전원을 끄면 먼지가 먼지통 바닥에 가라앉습니다. ${I && !meshesFor(RE.nozzle).length ? '노즐·먼지통 파트를 찾지 못해 모델 길이 방향 앞쪽 끝을 흡입구로 씁니다.' : ''}</p>`;
   } else if (activeTab === 'model') {
     const ax = ['X', 'Y', 'Z'];
     b.innerHTML = `<h3>3D 모델 <small>${esc(modelInfo.name)}</small></h3>
@@ -1235,11 +1258,17 @@ $('#body').addEventListener('click', async e => {
   if (t.id === 'psSave') { const n = $('#psName').value.trim() || `프리셋 ${myPresets.length + 1}`; myPresets.unshift({name:n, mode:S.mode, parts:structuredClone(S.parts)}); try { localStorage.setItem(LS + '.presets', JSON.stringify(myPresets)); } catch {} renderTab(); return toast('프리셋을 저장했습니다'); }
   if (t.id === 'bLoad' || t.id === 'xOpen') return $('#fOpen').click();
   if (t.id === 'bDefault') { pickMode = null; await idbClear(); try { localStorage.removeItem(LS + '.last'); } catch {} S.images = []; return loadDefault(); }
-  if (d.mode) { if (d.mode !== S.mode) { clearMasks(); setMode(d.mode); S.view = true; syncToggles(); applyUniforms(); setTimeout(() => { S.view = false; syncToggles(); applyUniforms(); }, 1800); toast(`파트 ${S.parts.length}개`); persist(); } return renderTab(); }
-  if (d.rot) { S.rot[+d.rot] = (S.rot[+d.rot] + 1) % 4; fitModel(); setView(currentView, true); persist(); return; }
-  if (t.id === 'rotReset') { S.rot = [0, 0, 0]; fitModel(); setView(currentView, true); persist(); return; }
-  if (d.axis) { S.axis = +d.axis; return changed(); }
-  if (t.id === 'flip') { S.sign = -S.sign; return changed(); }
+  if (d.mode) { if (d.mode !== S.mode) { clearMasks(); setMode(d.mode); computeSim(); S.view = true; syncToggles(); applyUniforms(); setTimeout(() => { S.view = false; syncToggles(); applyUniforms(); }, 1800); toast(`파트 ${S.parts.length}개`); persist(); } return renderTab(); }
+  if (d.rot) { S.rot[+d.rot] = (S.rot[+d.rot] + 1) % 4; fitModel(); computeSim(); setView(currentView, true); persist(); return; }
+  if (t.id === 'rotReset') { S.rot = [0, 0, 0]; fitModel(); computeSim(); setView(currentView, true); persist(); return; }
+  if (d.lv) { setPower(+d.lv); return; }
+  if (d.ledc) { SIM.led = d.ledc; applyPower(); return; }
+  if (t.id === 'dustToggle') { SIM.dustOn = !SIM.dustOn; writeDust(); air.visible = SIM.dustOn; inval(); return renderTab(); }
+  if (t.id === 'vibToggle') { SIM.vib = !SIM.vib; return renderTab(); }
+  if (t.id === 'dustReset') { resetDust(); return toast('바닥에 먼지를 다시 뿌렸습니다'); }
+  if (t.id === 'binEmpty') return emptyBin();
+  if (d.axis) { S.axis = +d.axis; changed(); computeSim(); return; }
+  if (t.id === 'flip') { S.sign = -S.sign; changed(); computeSim(); return; }
   if (t.id === 'pkSplit' || t.id === 'pkRing') { const m = t.id === 'pkSplit' ? 'split' : 'ring'; pickMode = pickMode === m ? null : m; renderTab(); if (pickMode) toast(m === 'split' ? '모델에서 앞쪽 파트가 끝나는 지점을 탭하세요' : '모델에서 링이 끝나는 지점을 탭하세요'); return; }
   if (d.bg) { S.bg = d.bg; scene.background = BG[S.bg]; persist(); renderTab(); return inval(); }
   if (t.id === 'xProj') return saveProject();
@@ -1268,6 +1297,7 @@ $('#body').addEventListener('change', e => { if (['cPick', 'cHex', 'c2Pick', 'c2
 $('#fOpen').addEventListener('change', e => { openFiles(e.target.files); e.target.value = ''; });
 $('#fImg').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; const i = await addImage(f).catch(() => -1); if (i >= 0) { const p = S.parts[S.sel]; Object.assign(p, {pat:'image', img:i, patAmt:1, scale:p.pat === 'image' ? p.scale : PAT.image.scale}); changed(); toast('이미지 텍스처를 추가했습니다'); } });
 $('#aOpen').addEventListener('click', () => $('#fOpen').click());
+$('#tPower').addEventListener('click', () => setPower(SIM.level + 1));
 $('#aSaveProj').addEventListener('click', saveProject);
 $('#aSaveGlb').addEventListener('click', exportGLB);
 document.querySelectorAll('#views button').forEach(b => b.addEventListener('click', () => setView(b.dataset.v)));
@@ -1283,11 +1313,172 @@ addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveProject(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') { e.preventDefault(); $('#fOpen').click(); return; }
   if (e.target.closest('input')) return;
+  if (e.key === 'p' || e.key === 'P') { setPower(SIM.level + 1); return; }
   const k = {'1':'persp', '2':'side', '3':'top', '4':'front', '5':'quad'}[e.key]; if (k) setView(k);
 });
 
+/* ───────── 작동 시뮬레이션: 전원 3단계 · LED · 먼지 흡입 ───────── */
+const SIM = {level:0, info:null, dustOn:true, vib:true, led:'#7fd4ff', collected:0, press:0};
+const LEVELS = [{n:'꺼짐'}, {n:'1단', cap:.42, pull:1.3, w:7, air:.5}, {n:'2단', cap:.6, pull:2.4, w:11, air:.8}, {n:'3단', cap:.85, pull:4, w:16, air:1}];
+const LED_COLORS = [['#7fd4ff', '아이스 블루'], ['#ffffff', '화이트'], ['#7dffb0', '그린'], ['#ffb46b', '앰버'], ['#ff6b8a', '로즈']];
+const RE = {nozzle:/nozzle|dust.?bin|노즐|먼지통/i, filter:/filter.?mesh|filter|필터/i, led:/led|indicator|인디케이터/i, power:/power.?button|power|전원/i, icon:/icon|아이콘/i};
+function meshesFor(re, exclude) {
+  const out = new Set();
+  for (const sl of slots) { const pn = S.parts[sl.slotU.value]?.name || ''; if ((re.test(sl.mesh.name) || re.test(pn) || re.test(sl.src.name || '')) && !(exclude && (exclude.test(sl.mesh.name) || exclude.test(pn)))) out.add(sl); }
+  return [...out];
+}
+function worldVerts(meshes, fn) {
+  const v = new THREE.Vector3();
+  for (const m of meshes) { const P = m.geometry.attributes.position; m.updateMatrixWorld(true); for (let i = 0; i < P.count; i += 1) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); fn(v); } }
+}
+function computeSim() {
+  if (!model) return; holder.position.set(0, 0, 0); model.updateMatrixWorld(true);
+  const a = U.uAxis.value.clone().normalize();
+  const up = Math.abs(a.y) > .9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  const e1 = new THREE.Vector3().crossVectors(a, up).normalize(), e2 = new THREE.Vector3().crossVectors(e1, a).normalize();
+  const nozSl = meshesFor(RE.nozzle), filSl = meshesFor(RE.filter, /core|cap|ring/i);
+  const nozM = nozSl.length ? [...new Set(nozSl.map(s => s.mesh))] : zoneMeshes();
+  let amin = 1e9, amax = -1e9; worldVerts(nozM, v => { const t = v.dot(a); amin = Math.min(amin, t); amax = Math.max(amax, t); });
+  const mouth = new THREE.Vector3(); let n = 0; worldVerts(nozM, v => { if (v.dot(a) < amin + .02) { mouth.add(v); n++; } }); mouth.divideScalar(Math.max(1, n));
+  let mouthR = 0; worldVerts(nozM, v => { if (v.dot(a) < amin + .02) { const d = v.clone().sub(mouth); d.addScaledVector(a, -d.dot(a)); mouthR = Math.max(mouthR, d.length()); } });
+  const L = (nozSl.length ? amax : modelBox.max.dot(a)) - amin;
+  let fc = new THREE.Vector3(), f0 = amin + L * .55, f1 = amin + L * .9, rf = .05, nf = 0;
+  const filM = [...new Set(filSl.map(s => s.mesh))];
+  if (filM.length) { f0 = 1e9; f1 = -1e9; worldVerts(filM, v => { fc.add(v); nf++; const t = v.dot(a); f0 = Math.min(f0, t); f1 = Math.max(f1, t); }); fc.divideScalar(nf); rf = 0; worldVerts(filM, v => { const d = v.clone().sub(fc); d.addScaledVector(a, -d.dot(a)); rf += d.length(); }); rf /= nf; }
+  else fc.copy(mouth).addScaledVector(a, L * .7);
+  const lineAt = t => fc.clone().addScaledVector(a, t - fc.dot(a));
+  let rb = rf + .08; if (nozSl.length) { rb = 0; worldVerts(nozM, v => { const t = v.dot(a); if (t > f0 && t < f1) { const d = v.clone().sub(lineAt(t)); d.addScaledVector(a, -d.dot(a)); rb = Math.max(rb, d.length()); } }); rb = Math.max(rf + .04, rb * .86); }
+  let binLow = 1e9; if (nozSl.length) worldVerts(nozM, v => { const t = v.dot(a); if (t > f0 && t < f1) binLow = Math.min(binLow, v.y); }); if (binLow > 1e8) binLow = fc.y - rb; binLow += .022;
+  // LED 점과 전원 버튼
+  const ledSl = meshesFor(RE.led), dots = [];
+  if (ledSl.length) {
+    const ts = []; const pts = []; worldVerts([...new Set(ledSl.map(s => s.mesh))], v => { ts.push(v.dot(a)); pts.push(v.clone()); });
+    const order = ts.map((t, i) => i).sort((i, j) => ts[i] - ts[j]); let cur = [];
+    const flush = () => { if (!cur.length) return; const c = new THREE.Vector3(); cur.forEach(i => c.add(pts[i])); c.divideScalar(cur.length); dots.push({t:c.dot(a), p:c}); cur = []; };
+    order.forEach((i, k) => { if (k && ts[i] - ts[order[k - 1]] > .012) flush(); cur.push(i); }); flush();
+  }
+  const pwrSl = meshesFor(RE.power, RE.icon), iconSl = meshesFor(RE.icon);
+  U.uLedPart.value = ledSl.length ? ledSl[0].slotU.value : -1;
+  U.uIconPart.value = iconSl.length ? iconSl[0].slotU.value : -1;
+  SIM.info = {binLow, a, e1, e2, mouth, mouthR:Math.max(.03, mouthR), amin, f0, f1, rf, rb, fc, lineAt, dots: dots.slice(0, 8),
+    pwrMeshes:[...new Set([...pwrSl, ...iconSl].map(s => s.mesh))], pwrParts:new Set([...pwrSl, ...iconSl].map(s => s.slotU.value)), floor:ground.position.y};
+  buildLedSprites(); resetDust(); applyPower();
+}
+/* LED 글로우 */
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.25, 'rgba(255,255,255,.55)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const ledGroup = new THREE.Group(); scene.add(ledGroup);
+function buildLedSprites() {
+  ledGroup.clear(); if (!SIM.info) return;
+  for (const d of SIM.info.dots) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex, color:SIM.led, blending:THREE.AdditiveBlending, depthWrite:false, transparent:true, opacity:0}));
+    sp.position.copy(d.p).add(new THREE.Vector3(0, .006, 0)); sp.scale.setScalar(.1); sp.renderOrder = 20; ledGroup.add(sp); }
+}
+function applyPower() {
+  const lv = SIM.level, I = SIM.info;
+  U.uLedCol.value.set(SIM.led);
+  if (I && I.dots.length) { const n = lv === 0 ? 0 : Math.min(I.dots.length, Math.ceil(lv / 3 * I.dots.length)); U.uLedCut.value = n === 0 ? -99 : n >= I.dots.length ? 99 : (I.dots[n - 1].t + I.dots[n].t) / 2; }
+  U.uLedI.value = lv ? 8 : 0; U.uIconI.value = lv ? 2.2 : 0;
+  ledGroup.children.forEach((sp, i) => { const n = Math.ceil(lv / 3 * I.dots.length); sp.material.color.set(SIM.led); sp.userData.on = lv > 0 && i < n; });
+  $('#tPower').setAttribute('aria-pressed', lv > 0); $('#tPowerTxt').textContent = LEVELS[lv].n;
+  inval(); if (activeTab === 'run') renderTab();
+}
+function setPower(lv, fromButton) {
+  SIM.level = ((lv % 4) + 4) % 4; SIM.press = performance.now();
+  applyPower(); toast(SIM.level ? `${LEVELS[SIM.level].n} 작동` : '전원 꺼짐');
+}
+/* 먼지 입자 */
+const DUST_N = 650;
+const dustGeo = new THREE.IcosahedronGeometry(1, 0);
+const dustMat = new THREE.MeshStandardMaterial({roughness:1, metalness:0});
+const dust = new THREE.InstancedMesh(dustGeo, dustMat, DUST_N); dust.castShadow = true; dust.frustumCulled = false; scene.add(dust);
+const D = Array.from({length:DUST_N}, () => ({p:new THREE.Vector3(), v:new THREE.Vector3(), m:0, s:.01, th:0, r:0, u:0, rot:new THREE.Euler(), spin:new THREE.Vector3()}));
+const dustCols = ['#4a4744', '#6b655e', '#8a8178', '#3a3633', '#b8b0a3', '#7a5a3c', '#d9d4cc'];
+function spawnFloor(d, I) {
+  const fwd = I.a.clone().setY(0).normalize(); const side = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const base = I.mouth.clone().addScaledVector(fwd, -.22); base.y = I.floor;
+  const rr = Math.sqrt(Math.random()), aa = Math.random() * 6.283; d.p.copy(base).addScaledVector(fwd, Math.cos(aa) * rr * .32).addScaledVector(side, Math.sin(aa) * rr * .42);
+  d.s = .005 + Math.random() ** 3 * .016; d.p.y = I.floor + d.s * .6; d.v.set(0, 0, 0); d.m = 0;
+  d.rot.set(Math.random() * 6, Math.random() * 6, Math.random() * 6); d.spin.set(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(12);
+}
+function resetDust() {
+  const I = SIM.info; if (!I) return; SIM.collected = 0;
+  const c = new THREE.Color();
+  D.forEach((d, i) => { spawnFloor(d, I); dust.setColorAt(i, c.set(dustCols[i % dustCols.length])); });
+  dust.instanceColor.needsUpdate = true; writeDust(); inval();
+}
+function emptyBin() { const I = SIM.info; if (!I) return; D.forEach(d => { if (d.m >= 2) spawnFloor(d, I); }); SIM.collected = 0; writeDust(); inval(); if (activeTab === 'run') renderTab(); toast('먼지통을 비웠습니다'); }
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+function writeDust() {
+  dust.visible = SIM.dustOn && !!SIM.info;
+  D.forEach((d, i) => { _q.setFromEuler(d.rot); _s.setScalar(d.s); _m.compose(d.p, _q, _s); dust.setMatrixAt(i, _m); });
+  dust.instanceMatrix.needsUpdate = true;
+}
+/* 공기 흐름 */
+const AIR_N = 240, airPos = new Float32Array(AIR_N * 3), airA = Array.from({length:AIR_N}, () => ({p:new THREE.Vector3(), life:0, sp:1}));
+const airGeo = new THREE.BufferGeometry(); airGeo.setAttribute('position', new THREE.BufferAttribute(airPos, 3));
+const air = new THREE.Points(airGeo, new THREE.PointsMaterial({color:0xffffff, size:.028, transparent:true, opacity:0, depthWrite:false, map:glowTex, alphaTest:.01}));
+air.frustumCulled = false; air.renderOrder = 15; scene.add(air);
+function spawnAir(o, I, cap) {
+  const dir = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
+  if (dir.dot(I.a) > 0) dir.addScaledVector(I.a, -2 * dir.dot(I.a));
+  o.p.copy(I.mouth).addScaledVector(dir, cap * (.5 + Math.random() * .5)); if (o.p.y < I.floor + .005) o.p.y = I.floor + .005 + Math.random() * .05; o.life = 1; o.sp = .6 + Math.random() * .8;
+}
+let lastT = performance.now();
+function simStep() {
+  const now = performance.now(), dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  const I = SIM.info; if (!I || !model) return false;
+  const lv = SIM.level, L = LEVELS[lv];
+  let active = lv > 0;
+  // 버튼 눌림
+  const pk = Math.max(0, 1 - (now - SIM.press) / 160);
+  I.pwrMeshes.forEach(m => { if (m.userData.baseY === undefined) m.userData.baseY = m.position.y; m.position.y = m.userData.baseY - pk * .004 / (model.children[0].scale.x || 1); });
+  if (pk > 0) active = true;
+  // 진동
+  holder.position.set(0, 0, 0); if (lv && SIM.vib) holder.position.set((Math.random() - .5) * .0016 * lv, (Math.random() - .5) * .0012 * lv, (Math.random() - .5) * .0016 * lv);
+  // LED 글로우 (켜질 때 순서대로)
+  ledGroup.children.forEach((sp, i) => { const target = sp.userData.on ? .9 : 0; const k = Math.min(1, dt * (sp.userData.on ? 10 - i * 1.5 : 14)); sp.material.opacity += (target - sp.material.opacity) * Math.max(.05, k); if (Math.abs(target - sp.material.opacity) > .01) active = true; });
+  // 공기
+  air.material.opacity += ((lv ? .55 * L.air : 0) - air.material.opacity) * Math.min(1, dt * 6);
+  if (air.material.opacity > .01) {
+    airA.forEach((o, i) => { if (o.life <= 0 || o.p.distanceTo(I.mouth) < I.mouthR * .6) spawnAir(o, I, L.cap || .4);
+      const to = I.mouth.clone().sub(o.p); const d = to.length(); o.p.addScaledVector(to.normalize(), Math.min(d, dt * o.sp * (lv || 1) * .45 / (d + .15))); o.life -= dt * .6;
+      airPos[i * 3] = o.p.x; airPos[i * 3 + 1] = o.p.y; airPos[i * 3 + 2] = o.p.z; });
+    airGeo.attributes.position.needsUpdate = true; active = true;
+  }
+  if (!SIM.dustOn) return active;
+  let moving = false, col = 0;
+  for (const d of D) {
+    if (d.m === 0 || d.m === 1) {               // 바닥 / 빨려가는 중
+      const to = I.mouth.clone().sub(d.p), dist = to.length();
+      if (lv && dist < L.cap * (1.1 - d.s * 20)) { d.m = 1; d.v.addScaledVector(to.normalize(), dt * L.pull * 1.6 / (dist * dist + .03)); d.v.addScaledVector(I.e1, dt * .6 * Math.sin(now * .003 + d.s * 900)); }
+      if (d.m === 1) {
+        if (!lv) { d.v.y -= 9.8 * .25 * dt; }
+        d.v.multiplyScalar(Math.pow(.2, dt)); const vmax = lv ? 1.2 + lv * .6 : 2; if (d.v.length() > vmax) d.v.setLength(vmax); d.p.addScaledVector(d.v, Math.min(dt, dist / Math.max(d.v.length(), 1e-4)));
+        if (d.p.y < I.floor + d.s * .6) { d.p.y = I.floor + d.s * .6; d.v.y = 0; d.v.multiplyScalar(.6); if (!lv && d.v.lengthSq() < 1e-4) d.m = 0; }
+        d.rot.x += d.spin.x * dt; d.rot.y += d.spin.y * dt; moving = true;
+        if (lv && dist < Math.max(I.mouthR, .05) * 1.1) { d.m = 2; d.u = 0; }
+      }
+    } else if (d.m === 2) {                      // 노즐 → 먼지통 이동
+      d.u += dt * (1.2 + lv * .9); const t0 = I.amin, t1 = I.f0 - .01;
+      const along = t0 + (t1 - t0) * Math.min(1, d.u);
+      const c = I.lineAt(along).lerp(I.mouth.clone().addScaledVector(I.a, along - I.amin), 1 - Math.min(1, d.u));
+      d.p.copy(c); moving = true;
+      if (d.u >= 1) { d.m = 3; d.th = Math.random() * 6.283; d.r = I.rf + .02 + Math.random() * Math.max(.01, I.rb - I.rf - .03); d.ua = I.f0 + Math.random() * (I.f1 - I.f0) * .9; }
+    } else {                                     // 3 회오리 / 4 가라앉음
+      if (lv) { d.m = 3; d.th += dt * L.w * (.7 + .3 * (I.rb / Math.max(d.r, .01))); d.ua += (Math.random() - .5) * dt * .2; d.ua = THREE.MathUtils.clamp(d.ua, I.f0 + .005, I.f1 - .01);
+        const c = I.lineAt(d.ua).addScaledVector(I.e1, Math.cos(d.th) * d.r).addScaledVector(I.e2, Math.sin(d.th) * d.r); d.p.lerp(c, Math.min(1, dt * 12)); moving = true; }
+      else { const bottom = I.lineAt(d.ua).addScaledVector(I.e1, Math.cos(d.th) * .55 * (I.rb - I.rf + .04)); bottom.y = I.binLow + d.s * .7 + (d.r - I.rf) / Math.max(I.rb - I.rf, .01) * .035;
+        if (d.p.distanceTo(bottom) > .002) { d.p.lerp(bottom, Math.min(1, dt * 3)); moving = true; } d.m = 4; }
+      d.rot.x += d.spin.x * dt * (lv ? 1 : 0); col++;
+    }
+  }
+  if (col !== SIM.collected) { SIM.collected = col; if (activeTab === 'run') { const el = $('#binFill'); if (el) { el.style.width = (col / DUST_N * 100).toFixed(0) + '%'; $('#binTxt').textContent = Math.round(col / DUST_N * 100) + '%'; } } }
+  if (moving) writeDust();
+  return active || moving;
+}
+
 /* ───────── 시작 ───────── */
-window.__cmf = {S, U, THREE, setView, openFiles, exportGLB, saveProject, applyUniforms, renderTab, switchTab, setupModel, setMode, get model() { return model; }, renderer, scene, camera};
+window.__cmf = {S, U, THREE, get SIM() { return SIM; }, get D() { return D; }, setView, openFiles, exportGLB, saveProject, applyUniforms, renderTab, switchTab, setupModel, setMode, get model() { return model; }, renderer, scene, camera};
 renderTab(); syncToggles(); resize();
 let last = null; try { last = JSON.parse(localStorage.getItem(LS + '.last') || 'null'); } catch {}
 let restored = false;
