@@ -1182,6 +1182,7 @@ function renderTab() {
       <div class="two" style="grid-template-columns:repeat(4,1fr)">${LEVELS.map((l, i) => `<button class="btn" data-lv="${i}" aria-pressed="${SIM.level === i}" style="justify-content:center;padding:0">${l.n}</button>`).join('')}</div>
       <p class="hint">${I?.pwrMeshes.length ? '모델의 전원 버튼을 탭해도 꺼짐 → 1단 → 2단 → 3단 순서로 바뀝니다. (키보드 P)' : '이 모델에서는 전원 버튼 파트를 찾지 못했습니다. 위 단계 버튼이나 상단 전원 버튼을 쓰세요.'}</p>
       <h3>LED <small>${I?.dots.length ? `점 ${I.dots.length}개 · 단계만큼 켜짐` : '없음'}</small></h3>
+      <div class="chips" style="margin-bottom:10px"><button class="chip" id="funToggle" aria-pressed="${SIM.funOn}" ${U.uFunPart.value < 0 ? 'disabled title="깔때기 파트를 찾지 못했습니다"' : ''}>깔때기 LED ${SIM.funOn ? '켜짐' : '꺼짐'}</button></div>
       <div class="sw" style="grid-template-columns:repeat(5,minmax(0,1fr))">${LED_COLORS.map(([c, n]) => `<button data-ledc="${c}" title="${n}" aria-label="${n}" aria-pressed="${SIM.led === c}" style="background:${c}"></button>`).join('')}</div>
       <h3>먼지통 <small id="binTxt">${pct}%</small></h3>
       <div style="height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);overflow:hidden"><div id="binFill" style="height:100%;width:${pct}%;background:var(--acc);transition:width .3s"></div></div>
@@ -1273,6 +1274,7 @@ $('#body').addEventListener('click', async e => {
   if (t.id === 'rotReset') { S.rot = [0, 0, 0]; fitModel(); computeSim(); setView(currentView, true); persist(); return; }
   if (d.lv) { setPower(+d.lv); return; }
   if (d.ledc) { SIM.led = d.ledc; applyPower(); return; }
+  if (t.id === 'funToggle') { SIM.funOn = !SIM.funOn; inval(); toast(SIM.funOn ? '깔때기 LED를 켰습니다' : '깔때기 LED를 껐습니다'); return renderTab(); }
   if (t.id === 'sndToggle') { AU.on = !AU.on; audioInit(); audioLevel(SIM.level, SIM.level); return renderTab(); }
   if (t.id === 'vibToggle') { SIM.vib = !SIM.vib; return renderTab(); }
   if (t.id === 'dustReset') { resetDust(); return toast('바닥에 먼지를 다시 뿌렸습니다'); }
@@ -1329,7 +1331,7 @@ addEventListener('keydown', e => {
 });
 
 /* ───────── 작동 시뮬레이션: 전원 3단계 · LED · 먼지 흡입 ───────── */
-const SIM = {mode:false, level:0, info:null, dustOn:true, vib:true, led:'#7fd4ff', collected:0, press:0};
+const SIM = {funOn:true, mode:false, level:0, info:null, dustOn:true, vib:true, led:'#7fd4ff', collected:0, press:0};
 const LEVELS = [{n:'꺼짐'}, {n:'1단', cap:.42, pull:1.3, w:7, air:.5}, {n:'2단', cap:.6, pull:2.4, w:11, air:.8}, {n:'3단', cap:.85, pull:4, w:16, air:1}];
 const LED_COLORS = [['#7fd4ff', '아이스 블루'], ['#ffffff', '화이트'], ['#7dffb0', '그린'], ['#ffb46b', '앰버'], ['#ff6b8a', '로즈']];
 const RE = {funnel:/funnel|깔때기|inner.?(tube|duct)/i, nozzle:/nozzle|dust.?bin|노즐|먼지통/i, filter:/filter.?mesh|filter|필터/i, led:/led|indicator|인디케이터/i, power:/power.?button|power|전원/i, icon:/icon|아이콘/i};
@@ -1537,7 +1539,7 @@ function simStep() {
   // LED 글로우 (켜질 때 순서대로)
   ledGroup.children.forEach((sp, i) => { const target = sp.userData.on ? .9 : 0; const k = Math.min(1, dt * (sp.userData.on ? 10 - i * 1.5 : 14)); sp.material.opacity += (target - sp.material.opacity) * Math.max(.05, k); if (Math.abs(target - sp.material.opacity) > .01) active = true; });
   // 안쪽 깔때기 불빛 (안쪽 → 흡입구로 흐르는 빛)
-  const funT = [0, .28, .4, .55][lv], funK = Math.min(1, dt * (lv ? 2.5 : 1.6));
+  const funT = SIM.funOn ? [0, .28, .4, .55][lv] : 0, funK = Math.min(1, dt * (lv ? 2.5 : 1.6));
   U.uFunI.value += (funT - U.uFunI.value) * funK; if (U.uFunI.value < .003) U.uFunI.value = 0;
   U.uTime.value += dt * (.6 + lv * .45);
   funLight.intensity = U.uFunI.value * 1.1;
