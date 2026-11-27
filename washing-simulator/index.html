@@ -1295,7 +1295,7 @@ const M={
  side:new THREE.MeshPhysicalMaterial({color:0x1d1f22,metalness:.2,roughness:.55,envMapIntensity:.45,normalMap:embossNormal(),normalScale:new THREE.Vector2(1.3,1.3),clearcoat:.15,clearcoatRoughness:.4}),
  dark:new THREE.MeshPhysicalMaterial({color:0x1f2124,metalness:.1,roughness:.7,envMapIntensity:.4}),
  liner:new THREE.MeshStandardMaterial({color:0x0b0c0d,roughness:.95,side:THREE.BackSide}),
- glass:new THREE.MeshPhysicalMaterial({color:0x000000,metalness:0,roughness:.02,clearcoat:1,clearcoatRoughness:.005,reflectivity:.7,envMapIntensity:1.1,side:THREE.DoubleSide}), // 도어 링: 짙은 블랙 고광택 글라스
+ glass:new THREE.MeshPhysicalMaterial({color:0x07090b,metalness:0,roughness:.03,clearcoat:1,clearcoatRoughness:.01,reflectivity:.5,envMapIntensity:.75,side:THREE.DoubleSide}), // 도어 링: 블랙 스모크 글라스 느낌(불투명)
  window:new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0,transmission:1,thickness:4,ior:1.5,envMapIntensity:.45,specularIntensity:.6,attenuationColor:new THREE.Color(0xf2f6f8),attenuationDistance:2000,side:THREE.DoubleSide}), // 맑은 강화유리
  rubber:new THREE.MeshPhysicalMaterial({color:0x8b9196,roughness:.78,side:THREE.DoubleSide}),
  frontC:new THREE.MeshPhysicalMaterial({color:0xb5b8ba,side:THREE.DoubleSide}), // 도어 자리(원형 함몰)
@@ -1508,7 +1508,7 @@ function setDock(){
 function setGlass(){const clear=xray||drumLamp,w=M.window;
  if(lowQ==='low'){w.color.setHex(clear?0xffffff:0x0b0d0f);w.opacity=clear?.18:.82;return}
  if(clear){w.color.setHex(0xffffff);w.attenuationColor.setHex(0xf2f6f8);w.attenuationDistance=2000;w.envMapIntensity=xray?.1:.45}
- else{w.color.setHex(0x8a9096);w.attenuationColor.setHex(0x14171a);w.attenuationDistance=11;w.envMapIntensity=.75} // 스모크 블랙: 안이 희미하게만 보임
+ else{w.color.setHex(0xb4babf);w.attenuationColor.setHex(0x30353a);w.attenuationDistance=26;w.envMapIntensity=.55} // 다크 그레이 스모크: 안이 은은하게 보임
 }
 function setXray(v){xray=v;setGlass();M.glass.transparent=v;M.glass.opacity=v?.28:1;M.glass.depthWrite=!v;M.glass.needsUpdate=true}
 function dock(d){
@@ -1845,7 +1845,8 @@ function frame(now){
  const dir=st&&['wash','rinse','soak'].includes(st.k)?(Math.sign(Math.sin(now/1600))||1):1;
  ang+=(vis>300?Math.min(vis/60,9)*2*Math.PI*.35:vis/60*2*Math.PI)*dt*dir;P.drum.rotation.z=-ang;
  const wDrum=dt>0?-(ang-lastAng)/dt:0;lastAng=ang;
- P.light.intensity+=((drumLamp?4.2:S.power&&(S.light||S.door)?1.4:0)-P.light.intensity)*Math.min(1,dt*6);
+ const lampK=S.door?1:.7; // 문이 닫혀 있으면 드럼 조명 30% 어둡게
+ P.light.intensity+=((drumLamp?4.2*lampK:S.power&&(S.light||S.door)?1.4:0)-P.light.intensity)*Math.min(1,dt*6);P.fill.intensity=1.6*lampK;
  // 세제함·하단 덮개·필터
  drawerZ+=((S.boxIn?0:260)-drawerZ)*Math.min(1,dt*5);P.drawer.position.z=drawerZ;
  P.detMain.scale.y=Math.max(.5,S.det.main.ml/S.det.main.cap*150);P.detSel.scale.y=Math.max(.5,S.det.sel.ml/S.det.sel.cap*150);
