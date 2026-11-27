@@ -1392,7 +1392,7 @@ function build(){
  // 도어 크기만큼 패인 원형 홈(닫으면 도어에 가려 안 보임). 홈 바닥에 개스킷·힌지 플레이트·잠금 구멍
  const RD=D.recess,SZ=frontZ-RD;
  mesh(lathe([[D.seat,1],[D.seat,-3],[D.seat-3,-RD+3],[D.seat-8,-RD],[D.hole+4,-RD],[D.hole,-RD+2]]),M.frontC,{y:D.cy,z:frontZ,shadow:false});
- const hs=D.hinge==='left'?-1:1;P.hs=hs;const hx=hs*(D.R+22),hz=frontZ+42; // 회전축은 도어 바깥·패널 앞쪽(150° 열어도 본체에 안 파고듦)
+ const hs=D.hinge==='left'?-1:1;P.hs=hs;const hx=hs*(D.R+21),hz=frontZ+10; // 회전축: 도어 가장자리 21mm 바깥, 패널 앞 10mm (계산으로 0~150° 내내 본체와 16mm 이상 간격)
  P.hinge=new THREE.Group();P.root.add(P.hinge);const hp={parent:P.hinge};
  mesh(new RoundedBoxGeometry(14,26,4,1,1),M.dark,{...hp,x:-hs*275,y:D.cy,z:SZ+1,shadow:false}); // 잠금 구멍
  for(const dy of[48,34])mesh(new THREE.CylinderGeometry(3,3,2,12).rotateX(Math.PI/2),M.dark,{...hp,x:-hs*275,y:D.cy+dy,z:SZ+1,shadow:false});
@@ -1403,9 +1403,10 @@ function build(){
   mesh(new THREE.CylinderGeometry(7,7,3,16).rotateX(Math.PI/2),M.chrome,{...hp,x:PX,y:D.cy+dy,z:SZ+13,shadow:false});
   mesh(new THREE.CylinderGeometry(3,3,4,6).rotateX(Math.PI/2),M.dark,{...hp,x:PX,y:D.cy+dy,z:SZ+14,shadow:false})}
  mesh(new RoundedBoxGeometry(PW-6,150,8,2,6),M.hinge,{...hp,x:PX,y:D.cy,z:SZ+14}); // 가운데 돋은 부분(암이 나오는 곳)
- // 암: 플레이트 가운데서 앞으로 나와 바깥으로 둥글게 휘어 회전축까지 (사진의 휘어진 알루미늄 바)
+ // 암(본체 쪽 절반): 플레이트 받침에서 바깥 회전축까지 짧게. 회전축에서 한 번 꺾여 도어 뒷면으로 (ㄴ자)
  P.armY=[-60,60];
- for(const dy of P.armY)flatBar([[PX,SZ+14],[PX,hz-10],[hx,hz]],{w:18,t:24,mat:M.hinge,parent:P.hinge,y:D.cy+dy});
+ for(const dy of P.armY){mesh(new RoundedBoxGeometry(30,30,10,2,4),M.hinge,{...hp,x:PX,y:D.cy+dy,z:SZ+17});
+  flatBar([[PX,SZ+18],[hx,hz]],{w:12,t:24,mat:M.hinge,parent:P.hinge,y:D.cy+dy})}
 
  // 개스킷(밝은 회색 고무, 홈 바닥에서 드럼 앞까지) + 노란 노즐
  mesh(lathe([[D.hole,0],[238,-5],[235,-14],[243,-26],[266,-34],[289,-38]]),M.rubber,{y:D.cy,z:SZ+1,shadow:false});
@@ -1441,15 +1442,14 @@ function build(){
  mesh(lathe([[222,1],[232,-6],[256,-6],[262,1]]),M.frame,{...dd,x:ox,z:oz});
  mesh(lathe([[214,4],[220,0],[220,-6],[213,-30],[201,-78],[174,-120],[122,-150],[0,-160]],72),M.window,{...dd,x:ox,z:oz,shadow:false});
  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+.3;mesh(new THREE.CylinderGeometry(5,5,3,12).rotateX(Math.PI/2),M.chrome,{...dd,x:ox+Math.cos(a)*276,y:Math.sin(a)*276,z:oz+3,shadow:false})}
- M.hblock=new THREE.MeshPhysicalMaterial({color:0x3a3e42,roughness:.6,metalness:.05});
- const BW=70,BX=ox+hs*(D.R-BW/2-6),BZ=oz-8,bin=-hs; // 블록: 도어 뒷면 힌지 쪽 가장자리. bin=도어 중심 방향
- mesh(new RoundedBoxGeometry(BW,230,14,2,4),M.hblock,{...dd,x:BX,z:BZ});
- mesh(new RoundedBoxGeometry(BW-22,120,8,2,3),M.hblock,{...dd,x:BX+bin*6,z:BZ-10}); // 가운데 단 높은 부분
- for(const [ux,dy] of [[-.2,-88],[.25,-30],[-.2,30],[.25,88]])mesh(new THREE.CylinderGeometry(5.5,5.5,4,16).rotateX(Math.PI/2),M.dark,{...dd,x:BX+bin*ux*BW,y:dy,z:BZ-15,shadow:false}); // 나사
- for(const [ux,dy] of [[.22,-104],[-.15,-60],[.15,0],[-.15,60],[.22,104]])mesh(new THREE.BoxGeometry(14,14,4),M.dark,{...dd,x:BX+bin*ux*BW,y:dy,z:BZ-13,shadow:false}); // 네모 구멍
- const edgeX=BX-bin*(BW/2); // 블록에서 회전축 쪽 옆면
+ // 도어 쪽: 박스 없이 도어 뒷면 프레임에 나사·네모 구멍, 암은 프레임의 홈으로 바로 들어감 (사진 참고)
+ const bin=-hs,BZ=oz+2,ex=(r)=>ox+hs*r; // ex(r): 도어 중심에서 힌지 쪽으로 r만큼
+ for(const [r,dy] of [[282,-96],[248,-40],[248,40],[282,96]])mesh(new THREE.CylinderGeometry(5.5,5.5,3,16).rotateX(Math.PI/2),M.dark,{...dd,x:ex(r),y:dy,z:BZ-1,shadow:false}); // 나사
+ for(const [r,dy] of [[268,-118],[270,-20],[270,20],[268,118]])mesh(new THREE.BoxGeometry(14,14,2),M.dark,{...dd,x:ex(r),y:dy,z:BZ-.6,shadow:false}); // 네모 구멍
  P.hingeD=[];
- for(const dy of P.armY){const g=flatBar([[0,0],[bin*16,BZ-4],[edgeX+bin*10,BZ-4]],{w:16,t:22,mat:M.hinge,parent:P.door,y:dy});P.hingeD.push(g)}
+ for(const dy of P.armY){
+  mesh(new THREE.BoxGeometry(30,28,2),M.dark,{...dd,x:ex(262),y:dy,z:BZ-.6,shadow:false}); // 암이 들어가는 홈
+  const g=flatBar([[0,0],[ex(262)-bin*6,BZ-8]],{w:12,t:22,mat:M.hinge,parent:P.door,y:dy});P.hingeD.push(g)}
  P.hingeD.push(mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10})); // 걸쇠(문 끝쪽) — 닫히면 숨김
  mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+DD+.5,shadow:false});
  P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+DD,shadow:false});
