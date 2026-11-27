@@ -1385,12 +1385,12 @@ function build(){
 
  // 패널은 도어 주변까지 평평. 잠금 구멍·센서·힌지는 문이 열릴 때만 보임
  const SZ=frontZ;
- const hs=D.hinge==='left'?-1:1;P.hs=hs;const hx=hs*(D.R-8),hz=frontZ+14; // 힌지 축은 도어 외곽 안쪽(닫으면 가려짐)
+ const hs=D.hinge==='left'?-1:1;P.hs=hs;const hx=hs*(D.R+22),hz=frontZ+42; // 힌지 축을 도어 바깥·패널 앞쪽으로 빼서 150° 열어도 도어가 본체에 파고들지 않게
  P.hinge=new THREE.Group();P.root.add(P.hinge);const hp={parent:P.hinge};
  mesh(new RoundedBoxGeometry(14,26,2,1,1),M.dark,{...hp,x:-hs*282,y:D.cy,z:SZ+.6,shadow:false}); // 잠금 구멍
  for(const dy of[48,34])mesh(new THREE.CylinderGeometry(3,3,1.2,12).rotateX(Math.PI/2),M.dark,{...hp,x:-hs*282,y:D.cy+dy,z:SZ+.6,shadow:false});
  mesh(new RoundedBoxGeometry(38,240,10,2,12),M.hinge,{...hp,x:hs*282,y:D.cy,z:SZ+5});
- for(const dy of[-62,62]){mesh(new RoundedBoxGeometry(30,30,20,2,6),M.hinge,{...hp,x:hs*280,y:D.cy+dy,z:SZ+12});mesh(new THREE.CylinderGeometry(8,8,40,16),M.hinge,{...hp,x:hx,y:D.cy+dy,z:hz})}
+ for(const dy of[-62,62]){mesh(new RoundedBoxGeometry(46,30,44,2,6),M.hinge,{...hp,x:hs*(D.R+4),y:D.cy+dy,z:SZ+22});mesh(new THREE.CylinderGeometry(8,8,40,16),M.hinge,{...hp,x:hx,y:D.cy+dy,z:hz})}
 
  // 개스킷(밝은 회색 고무) + 노란 노즐
  mesh(lathe([[D.hole,0],[238,-6],[235,-20],[243,-40],[266,-55],[289,-62]]),M.rubber,{y:D.cy,z:SZ-1,shadow:false});
@@ -1426,7 +1426,7 @@ function build(){
  mesh(lathe([[222,1],[232,-6],[256,-6],[262,1]]),M.frame,{...dd,x:ox,z:oz});
  mesh(lathe([[214,4],[220,0],[220,-6],[213,-30],[201,-78],[174,-120],[122,-150],[0,-160]],72),M.window,{...dd,x:ox,z:oz,shadow:false});
  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+.3;mesh(new THREE.CylinderGeometry(5,5,3,12).rotateX(Math.PI/2),M.chrome,{...dd,x:ox+Math.cos(a)*276,y:Math.sin(a)*276,z:oz+3,shadow:false})}
- P.hingeD=[-62,62].map(dy=>mesh(new RoundedBoxGeometry(34,26,16,2,5),M.hinge,{...dd,x:hs*-14,y:dy,z:-2}));
+ P.hingeD=[-62,62].map(dy=>mesh(new RoundedBoxGeometry(40,26,30,2,5),M.hinge,{...dd,x:-hs*18,y:dy,z:-22}));
  P.hingeD.push(mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10})); // 걸쇠(문 끝쪽) — 닫히면 숨김
  mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+DD+.5,shadow:false});
  P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+DD,shadow:false});
@@ -1469,7 +1469,7 @@ const VIEWS={
  back:()=>({t:[0,540,0],dir:[.2,.15,-1],d:fitDist(1100,1650)}),
  top:()=>({t:[0,700,0],dir:[0,1,.4],d:fitDist(1100,1100)}),
  op1:()=>({t:[0,890,CFG.frontZ],dir:[0,360,610],d:Math.max(708,fitDist(790,0))}), // 화면 조작1: 첨부 화면에서 역산한 카메라(높이 1,250mm, 앞 1,020mm). 좁은 화면이면 폭에 맞춰 뒤로
- op2:()=>({t:[CFG.screen.cx+6,CFG.screen.cy-4,CFG.frontZ],dir:[0,.1,1],d:fitDist(224,134)}), // 화면 조작2: LCD 모듈(실버 테두리)이 화면 폭의 약 89%를 채우는 시점
+ op2:()=>({t:[CFG.screen.cx,CFG.screen.cy,CFG.frontZ+5],dir:[0,.06,1],d:fitDist(224,134)}), // 화면 조작2: LCD 모듈을 화면 정중앙에, 폭의 약 89%로
  screen:()=>VIEWS.op2(),
  door:()=>({t:[0,CFG.door.cy,CFG.frontZ],dir:[0,.06,1],d:fitDist(760,760)}),
  inside:()=>({t:[0,CFG.door.cy,0],dir:[.04,.06,1],d:900}),
