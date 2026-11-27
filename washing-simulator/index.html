@@ -1143,12 +1143,12 @@ import {CSS3DRenderer,CSS3DObject} from 'three/addons/renderers/CSS3DRenderer.js
 /* ---------- CONFIG: 정면 사진(본체 폭 686mm = 296px) 실측 비율 ---------- */
 const CFG={
  W:686,H:1110,D:875,feet:30,
- back:-410,frontZ:410,panelT:14,          // 본체 깊이 820 + 도어 돌출 약 58 = 약 875
+ back:-410,frontZ:410,panelT:14,          // 본체 깊이 820 + 도어 돌출 약 47 = 약 875
  slabY0:180,                               // 전면 패널 아래 끝(이 아래는 하단 덮개)
  base:{y0:30,y1:176},                      // 하단 덮개 146mm
  screen:{cx:0,cy:1028,pxmm:177.8/Math.hypot(1024,600),modW:196,modH:104}, // 화면은 가로 중앙, 모듈 196×104mm(실버 테두리+블랙 글라스)
  flap:{cx:228,cy:984,w:160,h:188},         // 오른쪽 위 세제함 덮개
- door:{cy:540,R:300,glassR:198,hole:245,seat:318,hinge:'left',maxDeg:170}, // 힌지 왼쪽·약 170°(문 열린 사진 확인)
+ door:{cy:540,R:300,glassR:198,hole:245,seat:318,depth:47,hinge:'left',maxDeg:170}, // 힌지 왼쪽·약 170°(문 열린 사진 확인)
  drum:{R:292,depth:520,front:348},
  cam:{fov:35,min:150,max:6000}
 };
@@ -1267,7 +1267,7 @@ function build(){
 
  // 전면 패널: 도어 구멍 + 세제함 덮개 구멍
  const F=CFG.flap,D=CFG.door,sh=rrPath(new THREE.Shape(),-half,CFG.slabY0,W,CFG.H-CFG.slabY0,10);
- const h1=new THREE.Path();h1.absarc(0,D.cy,D.seat,0,Math.PI*2,true);sh.holes.push(h1);
+ const h1=new THREE.Path();h1.absarc(0,D.cy,D.hole,0,Math.PI*2,true);sh.holes.push(h1);
  sh.holes.push(rrPath(new THREE.Path(),F.cx-F.w/2-3,F.cy-F.h/2-3,F.w+6,F.h+6,8));
  const slab=new THREE.ExtrudeGeometry(sh,{depth:panelT-2,bevelEnabled:true,bevelThickness:1,bevelSize:1,bevelSegments:2,curveSegments:96});
  mesh(slab,M.frontA,{z:frontZ-panelT+1});
@@ -1304,18 +1304,17 @@ function build(){
  mesh(dg,M.drain,{parent:P.drainG,x:190,y:100,z:frontZ-50,act:'drain'});
  mesh(new THREE.BoxGeometry(56,10,10),M.drain,{parent:P.drainG,x:190,y:100,z:frontZ-34,act:'drain'});
 
- // 도어 자리: 패널이 원형으로 살짝 들어간 면 + 잠금 구멍 + 힌지 브래킷
- const SZ=frontZ-8;
- mesh(lathe([[D.seat,0],[316,-3],[309,-8],[252,-8],[D.hole,-4]]),M.frontC,{y:D.cy,z:frontZ-1,shadow:false});
- mesh(new RoundedBoxGeometry(14,26,6,1,2),M.dark,{x:282,y:D.cy,z:SZ+1,shadow:false});
- for(const dy of[48,34])mesh(new THREE.CylinderGeometry(3,3,3,12).rotateX(Math.PI/2),M.dark,{x:282,y:D.cy+dy,z:SZ+1,shadow:false});
+ // 패널은 도어 주변까지 평평. 잠금 구멍·센서·힌지는 문이 열릴 때만 보임
+ const SZ=frontZ;
  const hs=D.hinge==='left'?-1:1;P.hs=hs;const hx=hs*(D.R-8),hz=frontZ+14; // 힌지 축은 도어 외곽 안쪽(닫으면 가려짐)
  P.hinge=new THREE.Group();P.root.add(P.hinge);const hp={parent:P.hinge};
+ mesh(new RoundedBoxGeometry(14,26,2,1,1),M.dark,{...hp,x:-hs*282,y:D.cy,z:SZ+.6,shadow:false}); // 잠금 구멍
+ for(const dy of[48,34])mesh(new THREE.CylinderGeometry(3,3,1.2,12).rotateX(Math.PI/2),M.dark,{...hp,x:-hs*282,y:D.cy+dy,z:SZ+.6,shadow:false});
  mesh(new RoundedBoxGeometry(38,240,10,2,12),M.hinge,{...hp,x:hs*282,y:D.cy,z:SZ+5});
- for(const dy of[-62,62]){mesh(new RoundedBoxGeometry(30,30,20,2,6),M.hinge,{...hp,x:hs*280,y:D.cy+dy,z:SZ+16});mesh(new THREE.CylinderGeometry(8,8,40,16),M.hinge,{...hp,x:hx,y:D.cy+dy,z:hz})}
+ for(const dy of[-62,62]){mesh(new RoundedBoxGeometry(30,30,20,2,6),M.hinge,{...hp,x:hs*280,y:D.cy+dy,z:SZ+12});mesh(new THREE.CylinderGeometry(8,8,40,16),M.hinge,{...hp,x:hx,y:D.cy+dy,z:hz})}
 
  // 개스킷(밝은 회색 고무) + 노란 노즐
- mesh(lathe([[D.hole,0],[238,-6],[235,-20],[243,-40],[266,-55],[289,-62]]),M.rubber,{y:D.cy,z:SZ+4,shadow:false});
+ mesh(lathe([[D.hole,0],[238,-6],[235,-20],[243,-40],[266,-55],[289,-62]]),M.rubber,{y:D.cy,z:SZ-1,shadow:false});
  {const a=Math.PI*.78,nz=mesh(new RoundedBoxGeometry(22,30,24,2,6),M.yellow,{x:Math.cos(a)*232,y:D.cy+Math.sin(a)*232,z:SZ-28,shadow:false});nz.rotation.z=a+Math.PI/2}
 
  // 드럼: 쿠션 셀 타공 벽 + 동심원 타공 뒷판 + Y자 3갈래 리브(리프터로 이어짐)
@@ -1339,16 +1338,17 @@ function build(){
  P.door=new THREE.Group();P.door.position.set(hx,D.cy,hz);P.root.add(P.door);
  const dd={parent:P.door,act:'door'},ox=-hx,oz=frontZ-hz; // 도어 뒷면 = 패널 앞면
  const ring=new THREE.Shape();ring.absarc(0,0,D.R-3,0,Math.PI*2,false);const rh=new THREE.Path();rh.absarc(0,0,D.glassR,0,Math.PI*2,true);ring.holes.push(rh);
- P.ring=mesh(new THREE.ExtrudeGeometry(ring,{depth:4,bevelEnabled:true,bevelThickness:1.5,bevelSize:1.5,bevelSegments:3,curveSegments:96}),M.glass,{...dd,x:ox,z:oz+41});
- mesh(new THREE.CylinderGeometry(D.glassR,D.glassR,5,96).rotateX(Math.PI/2),M.window,{...dd,x:ox,z:oz+43.5,shadow:false});
+ const DD=D.depth;
+ P.ring=mesh(new THREE.ExtrudeGeometry(ring,{depth:4,bevelEnabled:true,bevelThickness:1.5,bevelSize:1.5,bevelSegments:3,curveSegments:96}),M.glass,{...dd,x:ox,z:oz+DD-6});
+ mesh(new THREE.CylinderGeometry(D.glassR,D.glassR,5,96).rotateX(Math.PI/2),M.window,{...dd,x:ox,z:oz+DD-3.5,shadow:false});
  mesh(lathe([[214,3],[262,3],[290,6],[299,14],[300,40],[297,42],[200,42]]),M.frame,{...dd,x:ox,z:oz});
  mesh(lathe([[222,1],[232,-6],[256,-6],[262,1]]),M.frame,{...dd,x:ox,z:oz});
  mesh(lathe([[214,4],[220,0],[220,-6],[213,-30],[201,-78],[174,-120],[122,-150],[0,-160]],72),M.window,{...dd,x:ox,z:oz,shadow:false});
  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+.3;mesh(new THREE.CylinderGeometry(5,5,3,12).rotateX(Math.PI/2),M.chrome,{...dd,x:ox+Math.cos(a)*276,y:Math.sin(a)*276,z:oz+3,shadow:false})}
- for(const dy of[-62,62])mesh(new RoundedBoxGeometry(34,26,16,2,5),M.hinge,{...dd,x:hs*-14,y:dy,z:-2});
- mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10}); // 걸쇠(문 끝쪽)
- mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+47.5,shadow:false});
- P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+47,shadow:false});
+ P.hingeD=[-62,62].map(dy=>mesh(new RoundedBoxGeometry(34,26,16,2,5),M.hinge,{...dd,x:hs*-14,y:dy,z:-2}));
+ P.hingeD.push(mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10})); // 걸쇠(문 끝쪽) — 닫히면 숨김
+ mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+DD+.5,shadow:false});
+ P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+DD,shadow:false});
 
  // 바닥: 그림자 + 접지 그림자
  const fl=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),new THREE.ShadowMaterial({opacity:.08}));fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;scene.add(fl);
@@ -1376,9 +1376,9 @@ function fitDist(w,h){const vf=THREE.MathUtils.degToRad(camera.fov)/2,hf=Math.at
 const VIEWS={
  home:()=>({t:[0,500,0],dir:[-.52,.3,.8],d:fitDist(1300,1850)}),
  front:()=>({t:[0,520,0],dir:[0,.08,1],d:fitDist(900,1600)}),
- left:()=>({t:[0,580,0],dir:[-1,.12,.06],d:fitDist(1050,1300)}),
- right:()=>({t:[0,580,0],dir:[1,.12,.06],d:fitDist(1050,1300)}),
- back:()=>({t:[0,580,0],dir:[.2,.15,-1],d:fitDist(1000,1300)}),
+ left:()=>({t:[0,540,0],dir:[-1,.12,.06],d:fitDist(1250,1650)}),
+ right:()=>({t:[0,540,0],dir:[1,.12,.06],d:fitDist(1250,1650)}),
+ back:()=>({t:[0,540,0],dir:[.2,.15,-1],d:fitDist(1100,1650)}),
  top:()=>({t:[0,700,0],dir:[0,1,.4],d:fitDist(1100,1100)}),
  screen:()=>({t:[CFG.screen.cx,CFG.screen.cy,CFG.frontZ],dir:[0,0,1],d:fitDist(190,118)}),
  door:()=>({t:[0,CFG.door.cy,CFG.frontZ],dir:[0,.06,1],d:fitDist(760,760)}),
@@ -1479,7 +1479,7 @@ function frame(now){
  // 도어: S.door + 거부 시 덜컥
  doorA+=((S.door?CFG.door.maxDeg*Math.PI/180:0)-doorA)*Math.min(1,dt*4);
  let tug=0;if(shakeT>0){shakeT-=dt;tug=Math.abs(Math.sin(shakeT*42))*.035*(shakeT/.5)}
- P.door.rotation.y=P.hs*(doorA+tug);P.hinge.visible=doorA>.04; // 닫히면 힌지 안 보임
+ P.door.rotation.y=P.hs*(doorA+tug);P.hinge.visible=doorA>.04;P.hingeD.forEach(m=>m.visible=doorA>.04); // 닫히면 힌지 안 보임
  M.led.emissiveIntensity=(!S.door&&window.doorBlock&&doorBlock())?2.2:0;
  // 드럼 회전: 기존 draw()의 보이는 속도 규칙을 그대로 사용
  const vis=Math.min(S.rpm,1400),st=S.cycle&&!S.cycle.done&&window.curStage&&curStage();
