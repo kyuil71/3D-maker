@@ -4,8 +4,8 @@
 //  breathing, micro-expressions) into one set of ARKit weights per frame.
 // ============================================================================
 import * as THREE from 'three';
-import { ARKIT_52 } from './rig.js?v=20261127c';
-import { EXPRESSIONS } from './expressions.js?v=20261127c';
+import { ARKIT_52 } from './rig.js?v=20261127d';
+import { EXPRESSIONS } from './expressions.js?v=20261127d';
 
 const EXPR = Object.fromEntries(EXPRESSIONS.map(e => [e.id, e]));
 const CH = ARKIT_52.concat(['tongueUp', 'headPitch', 'headYaw', 'headRoll']);

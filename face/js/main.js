@@ -5,13 +5,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRig, ARKIT_52 } from './rig.js?v=20261127c';
-import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127c';
-import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127c';
-import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127c';
-import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127c';
-import { FaceAnimator } from './animator.js?v=20261127c';
-import { buildGarment, GARMENT_COLORS, GARMENT_STYLES } from './garment.js?v=20261127c';
+import { buildRig, ARKIT_52 } from './rig.js?v=20261127d';
+import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127d';
+import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127d';
+import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127d';
+import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127d';
+import { FaceAnimator } from './animator.js?v=20261127d';
+import { buildGarment } from './garment.js?v=20261127d';
 
 const $ = id => document.getElementById(id);
 const ASSETS = window.__ASSETS || null;
@@ -164,7 +164,7 @@ function rebuildRig(lm) {
 }
 
 // ---------------------------------------------------------------- clothing / virtual upper body
-const garmentPref = Object.assign({ style: 'crew', color: 'charcoal' }, store.get(LS.settings, {}).garment || {});
+const garmentPref = { style: 'crew', color: 'black' };   // fixed: black crew-neck knit
 let garment = null;
 function applyGarment() {
   if (garment) { garment.removeFromParent(); garment.disposeAll(); garment = null; }
@@ -172,7 +172,6 @@ function applyGarment() {
   try { garment = buildGarment(srcGeom.attributes.position.array, rig.skeleton, garmentPref); rig.group.add(garment); }
   catch (e) { console.error(e); toast('의상 생성 실패: ' + e.message, 5000); }
 }
-function saveGarment() { store.set(LS.settings, { ...store.get(LS.settings, {}), garment: garmentPref }); }
 
 async function init() {
   if (location.protocol === 'file:' && !ASSETS) {
@@ -540,12 +539,6 @@ function buildUI() {
   $('btnAutoRot').onclick = () => { controls.autoRotate = !controls.autoRotate; $('btnAutoRot').classList.toggle('on', controls.autoRotate); };
   $('btnCamReset').onclick = () => { controls.autoRotate = false; $('btnAutoRot').classList.remove('on'); goView('front'); };
   $('selLight').onchange = e => setLighting(e.target.value);
-  const sg = $('selGarment'), sc = $('selGarmentColor');
-  for (const [k, v] of Object.entries(GARMENT_STYLES)) sg.add(new Option(v, k));
-  for (const [k, v] of Object.entries(GARMENT_COLORS)) sc.add(new Option(v.ko, k));
-  sg.value = garmentPref.style; sc.value = garmentPref.color;
-  sg.onchange = () => { garmentPref.style = sg.value; saveGarment(); applyGarment(); };
-  sc.onchange = () => { garmentPref.color = sc.value; saveGarment(); if (garment) garment.setColor(sc.value); };
   $('btnBg').onclick = () => { state.bg = state.bg === 'dark' ? 'light' : 'dark'; document.body.className = state.bg; scene.background = BG[state.bg]; $('btnBg').classList.toggle('on', state.bg === 'light'); };
   const st = $('selTex'); const names = { 1: '텍스처 1K', 2: '텍스처 2K', 4: '텍스처 4K', 8: '텍스처 8K (Ultra)' };
   TEX_LEVELS.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = names[l]; st.appendChild(o); }); st.value = state.texLevel;
