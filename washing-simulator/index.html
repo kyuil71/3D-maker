@@ -1505,12 +1505,17 @@ function setDock(){
  document.querySelectorAll('#dock3d [data-d],#dfloat [data-d]').forEach(b=>{b.classList.toggle('on',!!on[b.dataset.d]);b.setAttribute('aria-pressed',!!on[b.dataset.d])});
  document.querySelectorAll('#dock3d [data-m]').forEach(b=>{const o=b.dataset.m===mode;b.classList.toggle('on',o);b.setAttribute('aria-selected',o)});
 }
-function setXray(v){xray=v;M.window.transmission=1;M.window.envMapIntensity=v?.1:.45;M.glass.transparent=v;M.glass.opacity=v?.28:1;M.glass.depthWrite=!v;M.glass.needsUpdate=true}
+function setGlass(){const clear=xray||drumLamp,w=M.window;
+ if(lowQ==='low'){w.color.setHex(clear?0xffffff:0x0b0d0f);w.opacity=clear?.18:.82;return}
+ if(clear){w.color.setHex(0xffffff);w.attenuationColor.setHex(0xf2f6f8);w.attenuationDistance=2000;w.envMapIntensity=xray?.1:.45}
+ else{w.color.setHex(0x8a9096);w.attenuationColor.setHex(0x14171a);w.attenuationDistance=11;w.envMapIntensity=.75} // 스모크 블랙: 안이 희미하게만 보임
+}
+function setXray(v){xray=v;setGlass();M.glass.transparent=v;M.glass.opacity=v?.28:1;M.glass.depthWrite=!v;M.glass.needsUpdate=true}
 function dock(d){
  if(d==='views')$('#views3d').hidden=!$('#views3d').hidden;
  if(d==='xray')setXray(!xray);
  if(d==='spin'){autoSpin=!autoSpin;controls.autoRotate=autoSpin}
- if(d==='lamp'){drumLamp=!drumLamp;P.fill.visible=drumLamp}
+ if(d==='lamp'){drumLamp=!drumLamp;P.fill.visible=drumLamp;setGlass()}
  if(d==='sheet'){const s=$('#sheet');s.hidden=!s.hidden;if(!s.hidden){$('#deco').hidden=true;renderBench()}}
  if(d==='deco'){const s=$('#deco');s.hidden=!s.hidden;if(!s.hidden){$('#sheet').hidden=true;renderDeco()}}
  if(d==='hud')$('#hud').hidden=!$('#hud').hidden;
@@ -1578,7 +1583,7 @@ function init(){
  addEventListener('wm:change',e=>{if(e.detail&&e.detail.what==='doorDenied')shakeT=.5});
  addEventListener('resize',resize);
  addEventListener('wm:change',e=>{const w=e.detail&&e.detail.what;if(w==='error'&&mode==='C'&&S.cycle&&S.cycle.err){if(S.cycle.err==='5C'){baseOpen=true;flyTo('base')}else flyTo('back')}});
- buildMotion();setMode('A');initDeco();renderReadout();
+ buildMotion();setMode('A');setGlass();initDeco();renderReadout();
  window.__3d={THREE,camera,renderer,devObj,P,CFG,AU}; // 점검용
  requestAnimationFrame(t=>{last=t;requestAnimationFrame(frame)});
 }
@@ -1857,7 +1862,7 @@ function frame(now){
  if(mode!=='B'){renderer.render(scene,camera);css.render(cssScene,camera)}
  // 느린 기기면 한 번만 품질 낮춤
  if(!lowQ){fpsN++;fpsT+=dt;if(fpsN===120){lowQ=fpsT/fpsN>.03?'low':'ok';
-  if(lowQ==='low'){renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));M.window.transmission=0;M.window.transparent=true;M.window.opacity=.18;M.window.needsUpdate=true}}}
+  if(lowQ==='low'){renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));M.window.transmission=0;M.window.transparent=true;M.window.needsUpdate=true;setGlass()}}}
  if(!window.__3dReady){window.__3dReady=true;const l=$('#load3d');if(l){l.classList.add('out');setTimeout(()=>l.remove(),450)}btoast('한 손가락으로 돌리고, 두 손가락으로 확대하세요. 문·세제함·하단 덮개를 눌러 보세요.')}
  requestAnimationFrame(frame);
 }
