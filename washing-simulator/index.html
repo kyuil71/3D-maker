@@ -1405,8 +1405,8 @@ function build(){
  mesh(new RoundedBoxGeometry(PW-6,150,8,2,6),M.hinge,{...hp,x:PX,y:D.cy,z:SZ+14}); // 가운데 돋은 부분(암이 나오는 곳)
  // 암(본체 쪽 절반): 플레이트 받침에서 바깥 회전축까지 짧게. 회전축에서 한 번 꺾여 도어 뒷면으로 (ㄴ자)
  P.armY=[-60,60];
- for(const dy of P.armY){mesh(new RoundedBoxGeometry(30,30,10,2,4),M.hinge,{...hp,x:PX,y:D.cy+dy,z:SZ+17});
-  flatBar([[PX,SZ+18],[hx,hz]],{w:12,t:24,mat:M.hinge,parent:P.hinge,y:D.cy+dy})}
+ for(const dy of P.armY)mesh(new RoundedBoxGeometry(30,30,10,2,4),M.hinge,{...hp,x:PX,y:D.cy+dy,z:SZ+17});
+ P.armRoot=[PX,SZ+18];P.pivot=[hx,hz];
 
  // 개스킷(밝은 회색 고무, 홈 바닥에서 드럼 앞까지) + 노란 노즐
  mesh(lathe([[D.hole,0],[238,-5],[235,-14],[243,-26],[266,-34],[289,-38]]),M.rubber,{y:D.cy,z:SZ+1,shadow:false});
@@ -1444,12 +1444,16 @@ function build(){
  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+.3;mesh(new THREE.CylinderGeometry(5,5,3,12).rotateX(Math.PI/2),M.chrome,{...dd,x:ox+Math.cos(a)*276,y:Math.sin(a)*276,z:oz+3,shadow:false})}
  // 도어 쪽: 박스 없이 도어 뒷면 프레임에 나사·네모 구멍, 암은 프레임의 홈으로 바로 들어감 (사진 참고)
  const bin=-hs,BZ=oz+2,ex=(r)=>ox+hs*r; // ex(r): 도어 중심에서 힌지 쪽으로 r만큼
- for(const [r,dy] of [[282,-96],[248,-40],[248,40],[282,96]])mesh(new THREE.CylinderGeometry(5.5,5.5,3,16).rotateX(Math.PI/2),M.dark,{...dd,x:ex(r),y:dy,z:BZ-1,shadow:false}); // 나사
- for(const [r,dy] of [[268,-118],[270,-20],[270,20],[268,118]])mesh(new THREE.BoxGeometry(14,14,2),M.dark,{...dd,x:ex(r),y:dy,z:BZ-.6,shadow:false}); // 네모 구멍
+ for(const [r,dy] of [[248,-40],[248,40]])mesh(new THREE.CylinderGeometry(5.5,5.5,3,16).rotateX(Math.PI/2),M.dark,{...dd,x:ex(r),y:dy,z:BZ-1,shadow:false}); // 나사
+ for(const [r,dy] of [[270,-20],[270,20]])mesh(new THREE.BoxGeometry(14,14,2),M.dark,{...dd,x:ex(r),y:dy,z:BZ-.6,shadow:false}); // 네모 구멍
  P.hingeD=[];
  for(const dy of P.armY){
   mesh(new THREE.BoxGeometry(30,28,2),M.dark,{...dd,x:ex(262),y:dy,z:BZ-.6,shadow:false}); // 암이 들어가는 홈
-  const g=flatBar([[0,0],[ex(262)-bin*6,BZ-8]],{w:12,t:22,mat:M.hinge,parent:P.door,y:dy});P.hingeD.push(g)}
+ }
+ P.slot=new THREE.Vector3(ex(262)-bin*6,0,BZ-8); // 도어 쪽 암 끝(도어 좌표)
+ // 암: 받침 → 꺾임점 → 도어 홈. 꺾임점은 매 프레임 계산(회전축을 받침·홈 잇는 선에 대해 뒤집은 쪽 = 바깥으로 꺾임)
+ P.arms=P.armY.map(dy=>{const mk=(g)=>{const m=new THREE.Mesh(g,M.hinge);m.castShadow=true;P.root.add(m);return m};
+  return{dy,a:mk(new THREE.BoxGeometry(1,24,13)),b:mk(new THREE.BoxGeometry(1,22,12)),j:mk(new THREE.CylinderGeometry(9,9,24,20)),e:mk(new THREE.CylinderGeometry(6,6,22,16))}});
  P.hingeD.push(mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10})); // 걸쇠(문 끝쪽) — 닫히면 숨김
  mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+DD+.5,shadow:false});
  P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+DD,shadow:false});
@@ -1846,6 +1850,21 @@ function initDeco(){
  document.addEventListener('pointerdown',audioStart,{capture:true,passive:true});
 }
 
+const _sv=new THREE.Vector3();
+function updateArms(show){
+ if(!P.arms)return;
+ P.door.updateMatrix();
+ for(const A of P.arms){
+  for(const k of ['a','b','j','e'])A[k].visible=show;if(!show)continue;
+  _sv.copy(P.slot);_sv.y=A.dy;_sv.applyMatrix4(P.door.matrix); // 도어 좌표 → 본체(root) 좌표
+  const [rx,rz]=P.armRoot,[px,pz]=P.pivot,sx=_sv.x,sz=_sv.z,y=CFG.door.cy+A.dy;
+  let dx=sx-rx,dz=sz-rz;const L=Math.hypot(dx,dz)||1;dx/=L;dz/=L;
+  const t=(px-rx)*dx+(pz-rz)*dz,qx=rx+dx*t,qz=rz+dz*t;let jx=2*qx-px,jz=2*qz-pz; // 회전축을 선에 대해 반사
+  const seg=(m,x0,z0,x1,z1)=>{const l=Math.hypot(x1-x0,z1-z0);m.scale.x=Math.max(1,l);m.position.set((x0+x1)/2,y,(z0+z1)/2);m.rotation.y=-Math.atan2(z1-z0,x1-x0)};
+  seg(A.a,rx,rz,jx,jz);seg(A.b,jx,jz,sx,sz);A.j.position.set(jx,y,jz);A.e.position.set(sx,y,sz);
+ }
+}
+
 /* ---------- 매 프레임: S를 읽어 표현 ---------- */
 let last=0,ang=0,doorA=0,drawerZ=0,baseA=0,lintZ=0,cssOp=-1,cssTouch=null,fpsN=0,fpsT=0,lowQ=false;
 const _c=new THREE.Vector3(),_s=new THREE.Vector3();
@@ -1862,6 +1881,7 @@ function frame(now){
  doorA+=((S.door?(ajar?16:CFG.door.maxDeg)*Math.PI/180:0)-doorA)*Math.min(1,dt*4);
  let tug=0;if(shakeT>0){shakeT-=dt;tug=Math.abs(Math.sin(shakeT*42))*.035*(shakeT/.5)}
  P.door.rotation.y=P.hs*(doorA+tug);P.hinge.visible=doorA>.04;P.hingeD.forEach(m=>m.visible=doorA>.04); // 닫히면 힌지 안 보임
+ updateArms(doorA>.04);
  M.led.emissiveIntensity=(!S.door&&window.doorBlock&&doorBlock())?2.2:0;
  // 드럼 회전: 기존 draw()의 보이는 속도 규칙을 그대로 사용
  const vis=Math.min(S.rpm,1400),st=S.cycle&&!S.cycle.done&&window.curStage&&curStage();
