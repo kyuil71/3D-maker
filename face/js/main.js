@@ -5,13 +5,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRig, ARKIT_52 } from './rig.js?v=20261127d';
-import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127d';
-import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127d';
-import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127d';
-import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127d';
-import { FaceAnimator } from './animator.js?v=20261127d';
-import { buildGarment } from './garment.js?v=20261127d';
+import { buildRig, ARKIT_52 } from './rig.js?v=20261127e';
+import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127e';
+import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127e';
+import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127e';
+import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127e';
+import { FaceAnimator } from './animator.js?v=20261127e';
+import { initAI } from './ailive.js?v=20261127e';
+import { buildGarment } from './garment.js?v=20261127e';
 
 const $ = id => document.getElementById(id);
 const ASSETS = window.__ASSETS || null;
@@ -69,6 +70,7 @@ function goView(name) {
   const k = Math.max(1, 0.85 / Math.max(0.3, camera.aspect));   // portrait screens: step back so the head fits
   pos.sub(tgt).multiplyScalar(k).add(tgt);
   camAnim = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt };
+  state.lastView = name;
   document.querySelectorAll('#camViews button').forEach(b => b.classList.toggle('on', b.dataset.v === name));
 }
 
@@ -580,6 +582,100 @@ function buildUI() {
   });
   document.querySelectorAll('input[type=range]').forEach(fillRange);
   setLip('idle');
+  setupAI();
+  setupDrawer();
+}
+
+// ---------------------------------------------------------------- AI conversation (Gemini Live)
+let aiApi = null, liveLS = null, aiExprTimer = null;
+function setupAI() {
+  const host = {
+    store: { get: (k, d) => { const v = localStorage.getItem('serene.ai.' + k); return v === null ? d : v; }, set: (k, v) => { try { localStorage.setItem('serene.ai.' + k, v); } catch { } } },
+    animator, toast,
+    ensureAudio() { const c = ensureAudio(); if (!liveLS) liveLS = new AudioLipSync(c); return c; },
+    connectVoice(node) { node.connect(liveLS.input()); if (recDest) node.connect(recDest); },
+    setExpr(id, hold, k) {
+      const m = {}; for (const [e, v] of Object.entries(baseExpr)) m[e] = v * 0.2; m[id] = Math.min(1, 0.72 * k);
+      animator.setExpressionMix(m); clearTimeout(aiExprTimer);
+      aiExprTimer = setTimeout(() => animator.setExpressionMix({ ...baseExpr }), hold * 1000);
+    },
+    clearExpr() { clearTimeout(aiExprTimer); animator.setExpressionMix({ ...baseExpr }); },
+    moodFromText(text, heard) {
+      if (!$('chkAutoEmo').checked || !heard) return;
+      const r = rules.analyze(text); if (r.emotion === 'neutral' || r.emotion === 'blank') return;
+      host.setExpr(r.emotion, 3.5, 0.55 + 0.4 * r.intensity);
+      $('emoReadout').textContent = `AI: “${text.slice(0, 36)}” → ${EXPRESSIONS.find(e => e.id === r.emotion)?.ko || r.emotion}`;
+    },
+    beforeStart() { stopAll(); },
+    openAIPanel() {
+      if (document.body.classList.contains('mobile')) { openDrawer('ai'); }
+      else { $('left').scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('aiKey').focus(), 300); }
+    },
+    onState(s, txt, on, muted) {
+      $('aiDot').className = 'dot ' + (on ? s : 'closed');
+      $('aiDockState').textContent = on ? 'AI · ' + txt : (s === 'connecting' ? txt : 'AI 연결 전');
+      $('aiDockBtn').textContent = on ? '연결 끊기' : '연결하기';
+      $('aiDockBtn').classList.toggle('primary', !on);
+      if (s === 'speaking' && animator.aiCtl && animator.aiCtl.mouth === 'close') animator.aiCtl.mouth = null;
+      const st = document.querySelector('#dHome [data-c="ai"] .st'); if (st) st.textContent = on ? txt : '연결 전';
+    },
+  };
+  aiApi = initAI(host);
+  $('aiDockBtn').onclick = () => { if (aiApi.on) aiApi.stop(); else if (aiApi.hasKey) aiApi.connect(); else host.openAIPanel(); };
+  window.studio.ai = aiApi;
+}
+
+// ---------------------------------------------------------------- phone: right slide-in menu with categories
+const CATS = [
+  { id: 'ai', ic: '🤖', ko: 'AI 대화', nodes: ['secAI'] },
+  { id: 'expr', ic: '☺', ko: '표정 · 감정 · 피부', nodes: ['secExpr'] },
+  { id: 'ctrl', ic: '🎚', ko: '얼굴 정밀 제어', nodes: ['secCtrl', 'secPreset', 'secRaw'] },
+  { id: 'speak', ic: '🗣', ko: '말하기 · 립싱크', nodes: ['bottom'] },
+  { id: 'life', ic: '🫀', ko: '생체 움직임 · 자동 감정', nodes: ['secLife', 'secAuto'] },
+  { id: 'cam', ic: '📷', ko: '카메라 · 화면 · 녹화', nodes: ['grpCam', 'grpShot'] },
+  { id: 'light', ic: '💡', ko: '조명 · 배경', nodes: ['grpLight'] },
+  { id: 'model', ic: '⚙', ko: '모델 · 품질 · 내보내기', nodes: ['grpModel', 'rigInfo'] },
+];
+const homes = new Map();
+function openDrawer(cat) {
+  document.body.classList.add('drawer-open');
+  if (cat) showCat(cat); else showHome();
+}
+function closeDrawer() { document.body.classList.remove('drawer-open'); if (state.calib) openCalib(false); }
+function showHome() {
+  $('dHome').classList.remove('hidden'); $('dBody').classList.add('hidden'); $('dBack').classList.add('hidden'); $('dTitle').textContent = '메뉴';
+}
+function showCat(id) {
+  const c = CATS.find(x => x.id === id); const body = $('dBody');
+  for (const n of body.children) { const h = homes.get(n.id); if (h) h.parent.insertBefore(n, h.marker); }
+  body.textContent = '';
+  for (const nid of c.nodes) { const el = $(nid); if (el) body.appendChild(el); }
+  $('dHome').classList.add('hidden'); body.classList.remove('hidden'); $('dBack').classList.remove('hidden'); $('dTitle').textContent = c.ic + ' ' + c.ko;
+  body.scrollTop = 0; body.querySelectorAll('input[type=range]').forEach(fillRange);
+}
+function restoreAll() { for (const [id, h] of homes) { const el = $(id); if (el && el.parentNode !== h.parent) h.parent.insertBefore(el, h.marker); } }
+function setupDrawer() {
+  for (const c of CATS) for (const nid of c.nodes) {
+    const el = $(nid); if (!el || homes.has(nid)) continue;
+    const marker = document.createComment('home:' + nid); el.parentNode.insertBefore(marker, el); homes.set(nid, { parent: el.parentNode, marker });
+  }
+  const home = $('dHome');
+  for (const c of CATS) {
+    const b = document.createElement('button'); b.dataset.c = c.id;
+    b.innerHTML = `<span class="ic">${c.ic}</span><span>${c.ko}${c.id === 'ai' ? '<span class="st">연결 전</span>' : ''}</span><span class="ar">›</span>`;
+    b.onclick = () => showCat(c.id); home.appendChild(b);
+  }
+  $('menuBtn').onclick = () => openDrawer();
+  $('dClose').onclick = closeDrawer; $('drawerShade').onclick = closeDrawer;
+  $('dBack').onclick = showHome;
+  const mq = matchMedia('(max-width: 820px)');
+  const apply = () => {
+    const mob = mq.matches; document.body.classList.toggle('mobile', mob);
+    if (!mob) { restoreAll(); closeDrawer(); $('dBody').textContent = ''; showHome(); }
+    resize();
+    if (state.ready) goView(state.lastView || 'front');
+  };
+  mq.addEventListener('change', apply); apply();
 }
 
 // ---------------------------------------------------------------- loop
@@ -601,6 +697,8 @@ function loop() {
     if (visTrack && lipMode === 'exact') vis = visTrack.evaluate(audioEl.currentTime + 0.02, visOut);
     else vis = audioLS.update();
   } else if (micStream) vis = audioLS.update();
+  if (aiApi && aiApi.live.speaking && liveLS) { vis = liveLS.update(); if (lipMode !== 'analysis') setLip('analysis', 'AI 음성 · 실시간 파형 립싱크'); }
+  else if (aiApi && aiApi.on && lipMode === 'analysis' && !micStream && !(audioEl && !audioEl.paused)) setLip('idle');
   animator.viseme = vis; animator.speaking = !!vis || driver.state !== 'idle';
   if (state.calib) { rig.apply({}); rig.bones.root.position.y = rig.bones.rootRestY; renderer.render(scene, orthoCam); return; }
   animator.update(dt, rig, camera);

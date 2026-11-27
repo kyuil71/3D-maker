@@ -118,8 +118,9 @@ export class FaceAnimator {
         const d = tl.clone().sub(e);
         let yaw = Math.atan2(d.x, d.z), pitch = -Math.atan2(d.y, Math.hypot(d.x, d.z));
         if (d.z < 0) { yaw = 0; pitch = 0; }   // target behind the head
-        yaw = THREE.MathUtils.clamp(yaw + this.sacc.x + this.gazeOffset.x, -0.55, 0.55);
-        pitch = THREE.MathUtils.clamp(pitch + this.sacc.y - this.gazeOffset.y, -0.38, 0.38);
+        const ac = this.aiCtl, aey = ac ? (this.aiEy ||= new Spring()).x : 0, aex = ac ? (this.aiEx ||= new Spring()).x : 0;
+        yaw = THREE.MathUtils.clamp(yaw + this.sacc.x + this.gazeOffset.x + aey, -0.55, 0.55);
+        pitch = THREE.MathUtils.clamp(pitch + this.sacc.y - this.gazeOffset.y + aex, -0.38, 0.38);
         const gw = manualGaze ? 0.15 : 1;
         const y = this.eyeYaw[s].step(yaw * gw, dt, 28), p = this.eyePitch[s].step(pitch * gw, dt, 28);
         const sg = s === 'L' ? 1 : -1, S = s === 'L' ? 'Left' : 'Right';
@@ -144,6 +145,23 @@ export class FaceAnimator {
     if (this.tiltT > 0) { this.tiltT -= dt; if (this.tiltT <= 0) this.tilt = 0; }
     const hs = this.headS;
     o.headYaw += hs[0].step(hy, dt, 3); o.headPitch += hs[1].step(hp, dt, 3) + nod * 0.08; o.headRoll += hs[2].step(hr + this.tilt, dt, 3);
+    // 7b) AI conversation control layer (perform_action tool): held head/eye poses, nods, wink, eyes, mouth
+    const c = this.aiCtl;
+    if (c) {
+      const S = this.aiS ||= { hx: new Spring(), hy: new Spring(), hz: new Spring() };
+      (this.aiEy ||= new Spring()).step(c.e.y, dt, 7); (this.aiEx ||= new Spring()).step(c.e.x, dt, 7);
+      let ox = 0, oy = 0;
+      c.osc = c.osc.filter(q => { q.t += dt; const v = q.amp * Math.sin(q.t * q.f * Math.PI * 2) * (1 - q.t / q.dur); if (q.axis === 'x') ox += v; else oy += v; return q.t < q.dur; });
+      o.headPitch -= S.hx.step(c.h.x, dt, 5) + ox;
+      o.headYaw += S.hy.step(c.h.y, dt, 5) + oy;
+      o.headRoll += S.hz.step(c.h.z, dt, 5);
+      if (c.blinkNow) { this.nextBlink = 0; c.blinkNow = false; }
+      if (c.wink > 0) { c.wink -= dt; const p = 1 - c.wink / 0.6; o.eyeBlinkLeft = Math.max(o.eyeBlinkLeft, Math.sin(Math.min(1, p) * Math.PI)); }
+      if (c.eyes === 'close') { o.eyeBlinkLeft = o.eyeBlinkRight = 1; }
+      if (c.mouth === 'open') o.jawOpen = Math.max(o.jawOpen, 0.5);
+      if (c.mouth === 'close') { for (const k of ['jawOpen', 'mouthLowerDownLeft', 'mouthLowerDownRight', 'mouthUpperUpLeft', 'mouthUpperUpRight', 'mouthFunnel']) o[k] = 0; }
+      if (c.mouth === 'pucker') { o.mouthPucker = Math.max(o.mouthPucker, 0.9); o.jawOpen *= 0.3; }
+    }
     // 8) breathing (root bob + slight neck pitch)
     if (rig) {
       this.breathPhase += dt * this.breathRate * Math.PI * 2;
