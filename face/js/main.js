@@ -5,13 +5,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRig, ARKIT_52 } from './rig.js';
-import { DEFAULT_LANDMARKS } from './landmarks.js';
-import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js';
-import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js';
-import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js';
-import { FaceAnimator } from './animator.js';
-import { buildGarment, GARMENT_COLORS, GARMENT_STYLES } from './garment.js';
+import { buildRig, ARKIT_52 } from './rig.js?v=20261127c';
+import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127c';
+import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127c';
+import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127c';
+import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127c';
+import { FaceAnimator } from './animator.js?v=20261127c';
+import { buildGarment, GARMENT_COLORS, GARMENT_STYLES } from './garment.js?v=20261127c';
 
 const $ = id => document.getElementById(id);
 const ASSETS = window.__ASSETS || null;
@@ -169,8 +169,8 @@ let garment = null;
 function applyGarment() {
   if (garment) { garment.removeFromParent(); garment.disposeAll(); garment = null; }
   if (!rig || garmentPref.style === 'none') return;
-  garment = buildGarment(srcGeom.attributes.position.array, rig.skeleton, garmentPref);
-  rig.group.add(garment);
+  try { garment = buildGarment(srcGeom.attributes.position.array, rig.skeleton, garmentPref); rig.group.add(garment); }
+  catch (e) { console.error(e); toast('의상 생성 실패: ' + e.message, 5000); }
 }
 function saveGarment() { store.set(LS.settings, { ...store.get(LS.settings, {}), garment: garmentPref }); }
 

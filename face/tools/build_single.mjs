@@ -8,7 +8,7 @@ const out = path.join(root, 'dist'); fs.mkdirSync(out, { recursive: true });
 const vendor = path.join(root, 'vendor/three');
 const res = await build({
   entryPoints: [path.join(root, 'js/main.js')], bundle: true, format: 'esm', minify: true, write: false, target: 'es2020',
-  plugins: [{ name: 'three-alias', setup(b) {
+  plugins: [{ name: 'strip-version', setup(b) { b.onResolve({ filter: /\?v=/ }, a => ({ path: path.join(a.resolveDir, a.path.replace(/\?v=.*$/, '')) })); } }, { name: 'three-alias', setup(b) {
     b.onResolve({ filter: /^three$/ }, () => ({ path: path.join(vendor, 'three.module.min.js') }));
     b.onResolve({ filter: /^three\/addons\// }, a => ({ path: path.join(vendor, 'addons', a.path.replace('three/addons/', '')) }));
   } }],
@@ -23,7 +23,7 @@ let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'css/studio.css'), 'utf8');
 html = html.replace(/<link rel="stylesheet"[^>]*>/, `<style>${css}</style>`)
   .replace(/<script type="importmap">[\s\S]*?<\/script>/, '')
-  .replace(/<script type="module" src="js\/main.js"><\/script>/, () =>
+  .replace(/<script type="module" src="js\/main.js[^"]*"><\/script>/, () =>
     `<script>window.__TEX_LEVELS=${JSON.stringify(levels)};window.__ASSETS=${JSON.stringify(assets)};</script>\n<script type="module">${js}</script>`);
 const file = path.join(out, 'serene_face_studio_single.html');
 fs.writeFileSync(file, html);

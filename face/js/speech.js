@@ -3,7 +3,7 @@
 //  coarticulated viseme timelines, Web Speech TTS driver, audio-analysis
 //  lip sync, and importers for externally timed visemes (accurate mode).
 // ============================================================================
-import { VISEMES } from './expressions.js';
+import { VISEMES } from './expressions.js?v=20261127c';
 
 // ---------------------------------------------------------------- Korean
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
