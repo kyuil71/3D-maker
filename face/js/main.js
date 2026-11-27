@@ -5,14 +5,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRig, ARKIT_52 } from './rig.js?v=20261127e';
-import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127e';
-import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127e';
-import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127e';
-import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127e';
-import { FaceAnimator } from './animator.js?v=20261127e';
-import { initAI } from './ailive.js?v=20261127e';
-import { buildGarment } from './garment.js?v=20261127e';
+import { buildRig, ARKIT_52 } from './rig.js?v=20261127f';
+import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127f';
+import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127f';
+import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127f';
+import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127f';
+import { FaceAnimator } from './animator.js?v=20261127f';
+import { initAI } from './ailive.js?v=20261127f';
+import { buildGarment } from './garment.js?v=20261127f';
 
 const $ = id => document.getElementById(id);
 const ASSETS = window.__ASSETS || null;
@@ -209,10 +209,11 @@ function applyQuality() {
   if (state.quality === 'high') { pixelRatio = dpr; key.castShadow = true; }
   else if (state.quality === 'low') { pixelRatio = Math.min(1, dpr) * (isMobile ? 0.85 : 1); key.castShadow = false; }
   else { pixelRatio = Math.min(dpr, isMobile ? 1.5 : 2) * [1, 0.85, 0.7, 0.7][qualityStep]; key.castShadow = qualityStep < 3; }
+  if (state.aiLite) { pixelRatio = Math.min(pixelRatio, isMobile ? 1 : 1.25); key.castShadow = false; }
   renderer.setPixelRatio(pixelRatio); resize();
 }
 function autoQuality(dt) {
-  if (state.quality !== 'auto') return;
+  if (state.quality !== 'auto' || state.aiLite) return;
   frameTimes.push(dt); if (frameTimes.length < 120) return;
   const avg = frameTimes.reduce((a, b) => a + b) / frameTimes.length; frameTimes = [];
   if (avg > 1 / 40 && qualityStep < 3) { qualityStep++; applyQuality(); toast(`자동 품질 조정: 단계 ${qualityStep} (평균 ${(1 / avg).toFixed(0)}fps)`); }
@@ -287,6 +288,7 @@ function pickVoice(text) {
   return cands.find(v => /natural|neural|online|google/i.test(v.name)) || cands.find(v => v.localService) || cands[0] || null;
 }
 async function speak() {
+  if (aiApi && aiApi.on) { toast('AI 대화 중에는 말하기 기능을 쓸 수 없습니다. 대화를 종료한 뒤 사용하세요.'); return; }
   const text = $('txt').value.trim(); if (!text) return;
   const mode = $('selMode').value;
   stopAll(true);
@@ -607,6 +609,11 @@ function setupAI() {
       $('emoReadout').textContent = `AI: “${text.slice(0, 36)}” → ${EXPRESSIONS.find(e => e.id === r.emotion)?.ko || r.emotion}`;
     },
     beforeStart() { stopAll(); },
+    aiActive(on) {
+      state.aiOn = on; state.aiLite = on && $('chkAiLite').checked;
+      $('btnSpeak').disabled = on; $('btnSpeak').title = on ? 'AI 대화 중에는 브라우저 음성 말하기를 쓸 수 없습니다 (AI가 그 소리를 듣고 끊김)' : '';
+      applyQuality();
+    },
     openAIPanel() {
       if (document.body.classList.contains('mobile')) { openDrawer('ai'); }
       else { $('left').scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('aiKey').focus(), 300); }
@@ -621,6 +628,7 @@ function setupAI() {
     },
   };
   aiApi = initAI(host);
+  $('chkAiLite').onchange = e => { state.aiLite = state.aiOn && e.target.checked; applyQuality(); };
   $('aiDockBtn').onclick = () => { if (aiApi.on) aiApi.stop(); else if (aiApi.hasKey) aiApi.connect(); else host.openAIPanel(); };
   window.studio.ai = aiApi;
 }
@@ -680,8 +688,11 @@ function setupDrawer() {
 
 // ---------------------------------------------------------------- loop
 const clock = new THREE.Clock(); let fpsAcc = 0, fpsN = 0, lastVis = '';
-function loop() {
+let lastFrameT = 0;
+function loop(now = performance.now()) {
   requestAnimationFrame(loop);
+  if (state.aiLite && now - lastFrameT < 31) return;     // ~30 fps while talking to the AI
+  lastFrameT = now;
   const dt = clock.getDelta();
   if (!state.ready) return;
   if (camAnim) {
@@ -698,7 +709,7 @@ function loop() {
     else vis = audioLS.update();
   } else if (micStream) vis = audioLS.update();
   if (aiApi && aiApi.live.speaking && liveLS) { vis = liveLS.update(); if (lipMode !== 'analysis') setLip('analysis', 'AI 음성 · 실시간 파형 립싱크'); }
-  else if (aiApi && aiApi.on && lipMode === 'analysis' && !micStream && !(audioEl && !audioEl.paused)) setLip('idle');
+
   animator.viseme = vis; animator.speaking = !!vis || driver.state !== 'idle';
   if (state.calib) { rig.apply({}); rig.bones.root.position.y = rig.bones.rootRestY; renderer.render(scene, orthoCam); return; }
   animator.update(dt, rig, camera);

@@ -105,11 +105,12 @@ const LIVE_PROFILES = [
   { greet: false, textVia: 'realtime', tools: 'fn', model: LIVE_DEFAULT },
   { greet: false, textVia: 'realtime', tools: 'none', model: LIVE_DEFAULT },
 ];
-function liveSetup(model, voice, prof) {
+function liveSetup(model, voice, prof, resumeHandle, recap) {
   const fn = { functionDeclarations: [{ name: 'perform_action', description: '세린의 시선·고개·표정·눈·입 동작을 실행합니다. 실행 여부는 반환 결과를 따르세요.',
     parameters: { type: 'OBJECT', properties: { actions: { type: 'ARRAY', items: { type: 'STRING', enum: Object.keys(ACTS) } }, intensity: { type: 'NUMBER', description: '정도 1~3, 기본 1' } }, required: ['actions'] } }] };
   const tools = prof.tools === 'full' ? [{ googleSearch: {} }, fn] : prof.tools === 'fn' ? [fn] : null;
-  const sys = liveSystem() + (prof.tools === 'full' ? '' : '\n지금은 검색 도구가 꺼져 있습니다. 최신 정보는 정확히 알 수 없다고 솔직하게 말하세요.')
+  const sys = liveSystem() + (recap ? '\n\n[연결이 잠시 끊겼다가 다시 이어졌습니다. 아래는 끊기기 전까지의 대화입니다. 인사를 반복하지 말고, 사용자가 말을 걸면 이 흐름을 이어서 자연스럽게 답하세요.]\n' + recap : '')
+    + (prof.tools === 'full' ? '' : '\n지금은 검색 도구가 꺼져 있습니다. 최신 정보는 정확히 알 수 없다고 솔직하게 말하세요.')
     + (prof.tools === 'none' ? '\n지금은 얼굴 동작 도구가 꺼져 있습니다. 동작 요청에는 지금은 할 수 없다고 말하세요.' : '');
   const setup = {
     model: 'models/' + model.replace(/^models\//, ''),
@@ -117,7 +118,7 @@ function liveSetup(model, voice, prof) {
     systemInstruction: { parts: [{ text: sys }] },
     inputAudioTranscription: {}, outputAudioTranscription: {},
     realtimeInputConfig: { automaticActivityDetection: { disabled: true }, activityHandling: 'START_OF_ACTIVITY_INTERRUPTS', turnCoverage: 'TURN_INCLUDES_ONLY_ACTIVITY' },
-    contextWindowCompression: { slidingWindow: {} }, sessionResumption: {},
+    contextWindowCompression: { slidingWindow: {} }, sessionResumption: resumeHandle ? { handle: resumeHandle } : {},
   };
   if (tools) setup.tools = tools;
   return { setup };
@@ -146,40 +147,66 @@ export function initAI(host) {
   };
   const voiceFeat = voiceFeatFactory();
 
+  // ---------------------------------------------------------------- connection log (1-7)
+  const LOG_KEY = 'connLog';
+  const connLog = (() => { try { return JSON.parse(store.get(LOG_KEY, '[]')) || []; } catch { return []; } })();
+  function logEv(ev, detail = '') {
+    const d = new Date(), t = d.toLocaleTimeString('ko-KR', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0').slice(0, 1);
+    connLog.push({ t, date: d.toLocaleDateString('ko-KR'), ev, detail: String(detail).replace(/AIza[\w-]+/g, '[키]') });
+    while (connLog.length > 60) connLog.shift();
+    store.set(LOG_KEY, JSON.stringify(connLog)); renderLog();
+  }
+  function renderLog() {
+    const box = $('aiLog'); if (!box) return;
+    box.textContent = connLog.slice().reverse().map(e => `${e.t}  ${e.ev}${e.detail ? '  · ' + e.detail : ''}`).join('\n') || '기록 없음';
+  }
+
   const live = {
     ws: null, ready: false, state: 'closed', epoch: 0, nodes: new Set(), nextTime: 0, speaking: false, userActive: false,
-    blockOutput: false, muted: false, pre: [], lastVoice: 0, sp: 0, quiet: 0, noise: .004, pauseNod: true, turn: 0, inputText: '', outputText: '', serverDone: true,
-    threshold: .02, analyser: null, calls: new Set(), canceled: new Set(), greeted: false,
+    blockOutput: false, muted: false, autoMuted: false, pre: [], lastVoice: 0, sp: 0, quiet: 0, noise: .004, pauseNod: true, turn: 0, inputText: '', outputText: '', serverDone: true,
+    threshold: .02, calls: new Set(), canceled: new Set(), greeted: false, resumeHandle: null, openedAt: 0, goAwayAt: 0,
     emit(s) { this.state = s; onState(s); },
     send(v) { if (this.ws && this.ws.readyState === 1) { this.ws.send(JSON.stringify(v)); return true; } return false; },
-    async connect({ key, model, voice, prof }) {
-      this.close(true); const ep = ++this.epoch; this.closed = false;
-      this.prof = prof; this.phase = 'setup'; this.okTurns = 0;
-      this.calls.clear(); this.canceled.clear(); this.inputText = ''; this.outputText = ''; this.blockOutput = false; this.userActive = false; this.pre = []; this.greeted = false;
-      this.emit('connecting');
-      this.timer = setTimeout(() => this.fail('연결 시간 초과: API 키, 모델 접근 권한과 네트워크를 확인해 주세요.'), 30000);
+    // microphone + worklet + voice output are created once per conversation and survive reconnects
+    async ensureIO() {
+      const ctx = this.ctx = host.ensureAudio(); if (ctx.state !== 'running') await ctx.resume().catch(() => { });
+      if (this.stream && this.stream.active && this.stream.getAudioTracks().some(t => t.readyState === 'live')) return;
+      if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }, video: false });
+      this.stream = stream;
+      stream.getAudioTracks().forEach(t => t.addEventListener('ended', () => { if (ai.on) { logEv('마이크 트랙 종료', '다른 앱이 마이크를 가져갔을 수 있음'); this.stream = null; scheduleReconnect('마이크 재시작'); } }));
+      if (!recorderURL) recorderURL = URL.createObjectURL(new Blob([RECORDER_SRC], { type: 'text/javascript' }));
+      if (!ctx.__pcmRec) { await ctx.audioWorklet.addModule(recorderURL); ctx.__pcmRec = true; }
+      for (const k of ['mic', 'rec', 'silent']) { try { this[k] && this[k].disconnect(); } catch (e) { } }
+      if (!this.out) { this.out = ctx.createGain(); this.out.connect(ctx.destination); host.connectVoice(this.out); }
+      this.mic = ctx.createMediaStreamSource(stream); this.rec = new AudioWorkletNode(ctx, 'pcm-recorder');
+      this.silent = ctx.createGain(); this.silent.gain.value = 0;
+      this.mic.connect(this.rec); this.rec.connect(this.silent).connect(ctx.destination);
+      this.rec.port.onmessage = e => this.capture(new Float32Array(e.data));
+      if (this.muted) stream.getAudioTracks().forEach(t => t.enabled = false);
+    },
+    async connect({ key, model, voice, prof, resume, recap }) {
+      this.closeSocket(); const ep = ++this.epoch;
+      this.prof = prof; this.phase = 'setup'; this.okTurns = 0; this.resumed = !!resume; this.model = model;
+      this.calls.clear(); this.canceled.clear(); this.inputText = ''; this.outputText = ''; this.blockOutput = false; this.userActive = false; this.pre = [];
+      this.emit(ai.reconnecting ? 'reconnecting' : 'connecting');
+      this.timer = setTimeout(() => { if (ep === this.epoch) { logEv('연결 시간 초과', '30초 동안 응답 없음'); this.closeSocket(); liveClosed(4000, 'timeout'); } }, 30000);
       try {
-        const ctx = this.ctx = host.ensureAudio(); await ctx.resume();
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }, video: false });
-        if (ep !== this.epoch) { stream.getTracks().forEach(t => t.stop()); return; }
-        this.stream = stream;
-        if (!recorderURL) recorderURL = URL.createObjectURL(new Blob([RECORDER_SRC], { type: 'text/javascript' }));
-        if (!ctx.__pcmRec) { await ctx.audioWorklet.addModule(recorderURL); ctx.__pcmRec = true; }
+        await this.ensureIO();
         if (ep !== this.epoch) return;
-        // AI voice → speakers + lip-sync analyser + recorder
-        this.out = ctx.createGain(); this.out.connect(ctx.destination); host.connectVoice(this.out);
-        this.mic = ctx.createMediaStreamSource(stream); this.rec = new AudioWorkletNode(ctx, 'pcm-recorder');
-        this.silent = ctx.createGain(); this.silent.gain.value = 0;
-        this.mic.connect(this.rec); this.rec.connect(this.silent).connect(ctx.destination);
-        this.rec.port.onmessage = e => { if (ep === this.epoch) this.capture(new Float32Array(e.data)); };
         const ws = this.ws = new WebSocket(LIVE_WS + '?key=' + encodeURIComponent(key));
-        ws.onopen = () => { if (ep === this.epoch) this.send(liveSetup(model, voice, prof)); };
+        logEv(resume ? '재연결 시도 (세션 이어붙이기)' : recap ? '재연결 시도 (새 세션 + 대화 요약)' : '연결 시도', `모델 ${model} · 설정 ${ai.profile + 1}`);
+        ws.onopen = () => { if (ep === this.epoch) { this.openedAt = performance.now(); this.send(liveSetup(model, voice, prof, resume, recap)); } };
         let chain = Promise.resolve();
         ws.onmessage = e => { chain = chain.then(async () => { if (ep !== this.epoch) return; const raw = typeof e.data === 'string' ? e.data : await e.data.text(); if (ep === this.epoch) this.handle(JSON.parse(raw)); })
-          .catch(() => { if (ep === this.epoch) this.fail('음성 이벤트를 처리하지 못했습니다. 다시 연결해 주세요.'); }); };
-        ws.onerror = () => { if (ep === this.epoch) this.fail('Gemini에 연결하지 못했습니다. API 키와 네트워크를 확인해 주세요.'); };
-        ws.onclose = e => { if (ep === this.epoch && !this.closed) liveClosed(e.code, e.reason || ''); };
-      } catch (e) { if (ep === this.epoch) this.fail(e.name === 'NotAllowedError' ? '마이크 권한을 허용해 주세요.' : e.message); }
+          .catch(err => { if (ep === this.epoch) logEv('메시지 처리 오류', err.message); }); };
+        ws.onerror = () => { if (ep === this.epoch) logEv('웹소켓 오류', navigator.onLine ? '' : '오프라인'); };      // onclose follows and decides
+        ws.onclose = e => { if (ep !== this.epoch) return; this.ws = null; this.ready = false; clearTimeout(this.timer); liveClosed(e.code, e.reason || ''); };
+      } catch (e) {
+        if (ep !== this.epoch) return;
+        if (e.name === 'NotAllowedError') { this.fail('마이크 권한을 허용해 주세요.'); return; }
+        logEv('연결 준비 실패', e.message); liveClosed(4001, e.message);
+      }
     },
     capture(samples) {
       if (!this.ready || this.muted) return;
@@ -198,6 +225,7 @@ export function initAI(host) {
         this.sp = 0; this.lastVoice = now; this.pauseNod = true; wakeOn();
         this.userActive = true; this.blockOutput = true; this.inputText = ''; this.turn++;
         const was = this.speaking; this.clearAudio(); onInterrupt(was); this.emit('listening');
+        if (was) logEv('끼어들기 감지', 'AI 말 중단 (이어폰 없이 자주 뜨면 민감도를 올리세요)');
         this.send({ realtimeInput: { activityStart: {} } }); for (const q of this.pre) this.send({ realtimeInput: q }); this.pre = []; return;
       }
       if (this.userActive) {
@@ -208,9 +236,23 @@ export function initAI(host) {
       }
     },
     handle(e) {
-      if (e.error) return this.fail(e.error.message || 'Gemini API 오류');
-      if (e.setupComplete) { clearTimeout(this.timer); this.ready = true; this.phase = 'ready'; this.emit('connected'); return; }
-      if (e.goAway) notice('음성 세션이 곧 종료됩니다. 끊기면 🎤를 눌러 다시 연결하세요.');
+      if (e.error) { logEv('서버 오류', e.error.message || ''); return; }
+      if (e.setupComplete) {
+        clearTimeout(this.timer); this.ready = true; this.phase = 'ready';
+        const wasRe = ai.reconnecting; ai.reconnecting = false; ai.retry = 0; ai.handoverPending = false;
+        logEv(this.resumed ? '다시 연결됨 · 대화 이어짐' : wasRe ? '다시 연결됨 · 새 세션 (대화 요약 전달)' : '연결됨', `${Math.round(performance.now() - this.openedAt)}ms`);
+        if (wasRe) { this.greeted = true; addMsg('info', this.resumed ? '연결을 이어 붙였습니다. 대화가 계속됩니다.' : '다시 연결했습니다. 앞의 대화 내용을 전달해 두었습니다.'); }
+        this.emit(this.speaking ? 'speaking' : 'connected'); return;
+      }
+      if (e.sessionResumptionUpdate) {
+        const u = e.sessionResumptionUpdate;
+        if (u.resumable !== false && u.newHandle) this.resumeHandle = u.newHandle;
+      }
+      if (e.goAway) {      // server will close this socket soon → hand over to a new one at a quiet moment
+        const left = parseFloat(String((e.goAway.timeLeft || '')).replace(/[^\d.]/g, '')) || 10;
+        logEv('서버 연결 종료 예고', `남은 시간 약 ${left}초 · 조용할 때 새 연결로 넘김`);
+        ai.handoverPending = true; this.goAwayAt = performance.now(); this.goAwayLeft = left;
+      }
       for (const id of (e.toolCallCancellation && e.toolCallCancellation.ids) || []) this.canceled.add(id);
       const s = e.serverContent;
       if (s) {
@@ -223,12 +265,16 @@ export function initAI(host) {
           if (s.outputTranscription && s.outputTranscription.text) { this.outputText += s.outputTranscription.text; transcript('ai', this.outputText, this.turn); }
           for (const p of (s.modelTurn && s.modelTurn.parts) || []) {
             if (p.inlineData && /^audio\/pcm/.test(p.inlineData.mimeType || '')) this.enqueue(p.inlineData);
-            if (p.executableCode) this.emit('searching');
+            if (p.executableCode) { this.emit('searching'); this.searching = true; }
           }
           if (s.groundingMetadata) sources(s.groundingMetadata, this.turn);
         }
         if (s.modelTurn || s.outputTranscription) this.gotReply = true;
-        if (s.turnComplete) { this.serverDone = true; if (this.gotReply) { this.okTurns++; liveWorked(); } this.gotReply = false; if (!this.nodes.size && !this.userActive) this.emit('connected'); }
+        if (s.turnComplete) {
+          this.serverDone = true; this.searching = false;
+          if (this.gotReply) { this.okTurns++; liveWorked(); remember('me', this.inputText); remember('ai', this.outputText); }
+          this.gotReply = false; if (!this.nodes.size && !this.userActive) this.emit('connected');
+        }
       }
       if (e.toolCall) {
         const responses = [];
@@ -256,44 +302,48 @@ export function initAI(host) {
     clearAudio() { for (const n of this.nodes) { n.onended = null; try { n.stop(); n.disconnect(); } catch (e) { } } this.nodes.clear(); this.nextTime = 0; this.speaking = false; },
     text(t, silentUser) {
       if (!this.ready) return false;
-      this.clearAudio(); this.userActive = false; this.blockOutput = false; this.turn++; this.outputText = '';
-      if (!silentUser) transcript('me', t, this.turn); else ai.hideTurn = null;
+      this.clearAudio(); this.userActive = false; this.blockOutput = false; this.turn++; this.outputText = ''; this.inputText = silentUser ? '' : t;
+      if (!silentUser) transcript('me', t, this.turn);
       if (this.prof && this.prof.textVia === 'realtime') { this.send({ realtimeInput: { activityStart: {} } }); this.send({ realtimeInput: { text: t } }); this.send({ realtimeInput: { activityEnd: {} } }); }
       else this.send({ clientContent: { turns: [{ role: 'user', parts: [{ text: t }] }], turnComplete: true } });
       this.phase = silentUser ? 'greeting' : 'talk'; this.emit('thinking'); return true;
     },
-    mute(v) {
-      this.muted = v; if (this.stream) this.stream.getAudioTracks().forEach(t => t.enabled = !v);
+    mute(v, auto) {
+      this.muted = v; this.autoMuted = v && !!auto; if (this.stream) this.stream.getAudioTracks().forEach(t => t.enabled = !v);
       if (v && this.userActive) { this.send({ realtimeInput: { activityEnd: {} } }); this.userActive = false; this.blockOutput = false; this.emit('thinking'); }
       this.pre = []; onState(this.state);
     },
-    fail(msg) { this.close(true); this.emit('error'); notice(String(msg).replace(/AIza[\w-]+/g, '[키 숨김]')); },
+    fail(msg) { logEv('연결 중단', msg); this.close(true); this.emit('error'); notice(String(msg).replace(/AIza[\w-]+/g, '[키 숨김]')); },
+    closeSocket() {
+      this.epoch++; this.ready = false; clearTimeout(this.timer);
+      if (this.ws) { this.ws.onclose = null; this.ws.onerror = null; this.ws.onmessage = null; try { this.ws.close(); } catch (e) { } this.ws = null; }
+      this.userActive = false; this.pre = [];
+    },
     close(quiet) {
-      this.closed = true; this.ready = false; this.epoch++; clearTimeout(this.timer);
-      if (this.ws) { this.ws.onclose = null; this.ws.onerror = null; try { this.ws.close(); } catch (e) { } this.ws = null; }
-      this.clearAudio();
+      this.closeSocket(); this.clearAudio();
       if (this.rec) { this.rec.port.onmessage = null; try { this.rec.disconnect(); } catch (e) { } this.rec = null; }
       for (const k of ['mic', 'silent', 'out']) { try { this[k] && this[k].disconnect(); } catch (e) { } this[k] = null; }
       if (this.stream) this.stream.getTracks().forEach(t => t.stop()); this.stream = null;
-      this.muted = false; this.userActive = false; this.pre = [];
+      this.muted = false; this.autoMuted = false; this.resumeHandle = null;
       if (!quiet) this.emit('closed');
     },
   };
 
-  // ---------------------------------------------------------------- wake lock
-  const wake = { lock: null, last: 0, pending: false };
+  // ---------------------------------------------------------------- wake lock (held for the whole conversation)
+  const wake = { lock: null, pending: false };
   async function wakeOn() {
-    wake.last = performance.now();
     if (wake.lock || wake.pending || !ai.on || document.hidden || !('wakeLock' in navigator)) return;
     wake.pending = true;
     try { const l = await navigator.wakeLock.request('screen'); if (!ai.on) l.release().catch(() => { }); else { wake.lock = l; l.addEventListener('release', () => { if (wake.lock === l) wake.lock = null; }); } } catch (e) { }
     wake.pending = false;
   }
   function wakeOff() { const l = wake.lock; wake.lock = null; if (l) l.release().catch(() => { }); }
-  setInterval(() => { if (wake.lock && (!ai.on || performance.now() - wake.last > 60000)) wakeOff(); }, 5000);
 
   // ---------------------------------------------------------------- chat log
   const bubbles = new Map();
+  const history = [];   // finished turns, used to brief a fresh session after an unrecoverable drop
+  function remember(who, text) { text = String(text || '').trim(); if (!text) return; history.push((who === 'me' ? '사용자: ' : '세린: ') + text); while (history.length > 16) history.shift(); }
+  const recap = () => history.join('\n').slice(-2500);
   function addMsg(who, text) {
     const d = document.createElement('div'); d.className = 'msg ' + who; d.appendChild(document.createTextNode(text));
     const log = $('chatLog'); log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
@@ -339,15 +389,17 @@ export function initAI(host) {
     connecting: '연결 중…', connected: '말씀하세요. 그냥 말을 걸면 됩니다.', listening: '듣고 있어요…',
     thinking: '생각하는 중…', searching: '검색으로 확인하는 중…', speaking: '말하는 중 · 말을 걸면 바로 멈춰요',
     error: '연결이 끊겼습니다. 다시 연결하세요.', closed: '연결 전',
+    reconnecting: '연결 복구 중…', offline: '네트워크 끊김 · 연결되면 자동 복구',
   };
   function onState(s) {
-    if (/listening|thinking|searching|speaking|connecting/.test(s)) wakeOn();
+    if (ai.on) wakeOn();
     if (s === 'listening') ai.heard = true;
-    const txt = live.muted && live.ready ? '마이크가 꺼져 있습니다. 🎤를 눌러 켜세요.' : (STATE_TXT[s] || STATE_TXT.closed);
+    let txt = live.muted && live.ready ? '마이크가 꺼져 있습니다. 🎤를 눌러 켜세요.' : (STATE_TXT[s] || STATE_TXT.closed);
+    if (s === 'reconnecting' && ai.retryIn) txt = `연결 복구 중… (${ai.retry}번째)`;
     $('aiState').textContent = txt;
     const mic = $('aiMic');
     mic.classList.toggle('on', s === 'listening'); mic.classList.toggle('think', /thinking|searching|connecting/.test(s)); mic.classList.toggle('speak', s === 'speaking');
-    mic.classList.toggle('muted', live.muted); mic.textContent = live.muted ? '🔇' : (s === 'error' ? '🔄' : '🎤');
+    mic.classList.toggle('muted', live.muted); mic.textContent = live.muted ? '🔇' : (s === 'error' ? '🔄' : '🎤'); mic.classList.toggle('think', /thinking|searching|connecting|reconnecting|offline/.test(s));
     if (s === 'connected' && ai.on && !live.greeted && live.prof && live.prof.greet) {
       live.greeted = true;
       live.text('(대화가 연결됨) 차분한 평소 표정으로, 사람이 처음 말을 건네듯 한 문장으로 가볍게 인사해 주세요. 웃지 말고, "무엇이든 물어보세요" 같은 정형화된 안내 문구는 쓰지 마세요.', true);
@@ -387,50 +439,94 @@ export function initAI(host) {
     } catch (e) { $('aiErr').textContent = '연결 실패: ' + aiErrText(e.message); host.onState('closed', '연결 실패', false, false); host.openAIPanel(); }
     finally { $('aiConnect').disabled = false; $('aiConnect').textContent = '연결'; }
   }
-  function go(keepProfile) {
+  function go(keepProfile, opts = {}) {
     if (!keepProfile) ai.profile = clamp(+store.get('liveProfile', 0) || 0, 0, LIVE_PROFILES.length - 1);
     const prof = LIVE_PROFILES[ai.profile];
     live.threshold = +$('aiSens').value;
-    live.connect({ key: ai.key, model: prof.model || ai.model, voice: $('aiVoice').value, prof });
+    live.connect({ key: ai.key, model: prof.model || ai.model, voice: $('aiVoice').value, prof, resume: opts.resume || null, recap: opts.recap || null });
   }
-  function liveWorked() { if (String(store.get('liveProfile', '0')) !== String(ai.profile)) store.set('liveProfile', String(ai.profile)); ai.recover = 0; }
+  function liveWorked() { ai.everWorked = true; if (String(store.get('liveProfile', '0')) !== String(ai.profile)) store.set('liveProfile', String(ai.profile)); }
+
+  // ---- reconnection (1-1, 1-2, 1-4): unlimited while the conversation is on, with back-off
+  const BACKOFF = [0.5, 1, 2, 4, 8, 15, 30];
+  let reTimer = null;
+  function scheduleReconnect(why, immediate) {
+    if (!ai.on) return;
+    clearTimeout(reTimer);
+    if (!navigator.onLine) { ai.reconnecting = true; live.emit('offline'); logEv('오프라인', '네트워크가 돌아오면 자동 재연결'); return; }
+    ai.reconnecting = true;
+    const delay = immediate ? 0 : BACKOFF[Math.min(ai.retry, BACKOFF.length - 1)];
+    ai.retry++; ai.retryIn = delay;
+    live.emit('reconnecting');
+    logEv('재연결 예약', `${why} · ${delay}초 후 · ${ai.retry}번째`);
+    reTimer = setTimeout(() => {
+      if (!ai.on) return;
+      if (document.hidden) { logEv('재연결 보류', '화면이 다시 보이면 연결'); return; }
+      const handle = live.resumeHandle;
+      go(true, handle ? { resume: handle } : { recap: recap() });
+    }, delay * 1000);
+  }
   function liveClosed(code, reason) {
-    const where = live.phase === 'setup' ? '연결 설정 단계' : live.phase === 'greeting' ? '첫 인사 요청 직후' : '대화 도중';
-    const detail = `(${code}${reason ? ': ' + reason : ''}) · ${where} · 모델 ${(live.prof && live.prof.model) || ai.model}`;
-    const neverWorked = !live.okTurns;
+    if (!ai.on) return;
+    const where = live.phase === 'setup' ? '설정 단계' : live.phase === 'greeting' ? '첫 인사 직후' : '대화 중';
+    const lived = live.openedAt ? Math.round((performance.now() - live.openedAt) / 1000) : 0;
+    const detail = `코드 ${code}${reason ? ' (' + reason + ')' : ''} · ${where} · 유지 ${lived}초 · ${live.model || ai.model}`;
+    logEv('연결 끊김', detail);
+    const neverWorked = !live.okTurns && !live.resumed && !ai.everWorked;
+    // 1) quota / billing: retrying cannot help
     if (/quota|exceeded|billing|RESOURCE_EXHAUSTED/i.test(reason)) {
-      live.fail(neverWorked ? `이 API 키로는 Gemini Live(실시간 음성) 모델을 쓸 수 없습니다. 무료 등급 키는 Live 모델 한도가 없거나 0일 수 있습니다. 결제(Billing)가 연결된 프로젝트의 키를 넣어 주세요. ${detail}`
-        : `Gemini 사용 한도에 도달했습니다. 잠시 후 다시 시도하거나 AI Studio에서 한도·결제를 확인해 주세요. ${detail}`);
+      ai.on = false; clearTimeout(reTimer); host.aiActive(false);
+      live.fail(neverWorked ? `이 API 키로는 Gemini Live 모델을 쓸 수 없습니다(사용 한도 0 또는 결제 미연결). ${detail}` : `Gemini 사용 한도에 도달했습니다. 잠시 후 다시 시도하거나 AI Studio에서 한도·결제를 확인해 주세요. ${detail}`);
       return;
     }
-    if (ai.on && neverWorked && /^(1007|1008|1011)$/.test(String(code)) && ai.profile < LIVE_PROFILES.length - 1) {
-      ai.profile++; live.close(true);
-      addMsg('err', `연결이 거부되어 설정을 바꿔 다시 연결합니다 (${ai.profile + 1}/${LIVE_PROFILES.length}) ${detail}`);
-      setTimeout(() => { if (ai.on) go(true); }, 400); return;
+    if (/API key not valid|API_KEY_INVALID|PERMISSION_DENIED/i.test(reason)) { ai.on = false; clearTimeout(reTimer); host.aiActive(false); live.fail(aiErrText(reason)); return; }
+    // 2) the resumption handle was refused → forget it and start a fresh session with a recap
+    if (live.resumed && live.phase === 'setup') { live.resumeHandle = null; logEv('세션 이어붙이기 거부', '새 세션 + 대화 요약으로 재연결'); return scheduleReconnect('이어붙이기 실패', true); }
+    // 3) never answered with this profile → step down to a simpler setup
+    if (neverWorked && /^(1007|1008|1011)$/.test(String(code)) && ai.profile < LIVE_PROFILES.length - 1) {
+      ai.profile++; live.resumeHandle = null;
+      addMsg('err', `연결이 거부되어 설정을 바꿔 다시 연결합니다 (${ai.profile + 1}/${LIVE_PROFILES.length})`);
+      return scheduleReconnect('설정 단계 거부', true);
     }
-    if (ai.on && !neverWorked && (ai.recover || 0) < 2) {
-      ai.recover = (ai.recover || 0) + 1; live.close(true);
-      addMsg('err', `연결이 끊겨 다시 연결합니다 ${detail}`);
-      setTimeout(() => { if (ai.on) go(true); }, 400); return;
+    // 4) internal error while searching → continue without the search tool (1-4)
+    if (String(code) === '1011' && (live.searching || /search|grounding|tool/i.test(reason)) && LIVE_PROFILES[ai.profile].tools === 'full') {
+      ai.profile = 2; live.resumeHandle = null;
+      addMsg('err', '검색 중 서버 오류로 연결이 끊겨, 검색 도구 없이 다시 연결합니다. (대화 새로 시작 시 검색 기능 복구)');
+      return scheduleReconnect('검색 중 서버 오류', true);
     }
-    live.fail(`Gemini 연결 종료 ${detail}. ` + (neverWorked ? '이 키로 Live 모델을 쓸 수 없거나 사용 한도에 걸렸을 수 있습니다.' : '다시 연결하세요.'));
+    // 5) everything else (time limit, network, background, server hiccup): reconnect, resuming if possible
+    scheduleReconnect(String(code) === '1000' || ai.handoverPending ? '서버 세션 시간 만료' : '연결 끊김', String(code) === '1000' || ai.handoverPending);
   }
+  // planned hand-over after goAway: wait for a quiet moment (or the deadline), then swap sockets
+  setInterval(() => {
+    if (!ai.on || !ai.handoverPending || !live.ready) return;
+    const leftMs = live.goAwayLeft * 1000 - (performance.now() - live.goAwayAt);
+    const quiet = !live.speaking && !live.userActive && live.serverDone;
+    if (quiet || leftMs < 3000) {
+      ai.handoverPending = false; ai.reconnecting = true;
+      logEv('새 연결로 넘김', live.resumeHandle ? '세션 이어붙이기' : '새 세션 + 대화 요약');
+      const h = live.resumeHandle; go(true, h ? { resume: h } : { recap: recap() });
+    }
+  }, 250);
   function start() {
-    ai.on = true; ai.heard = false; bubbles.clear(); $('chatLog').textContent = ''; ctl.reset();
-    host.beforeStart();
+    ai.on = true; ai.heard = false; ai.retry = 0; ai.reconnecting = false; ai.everWorked = false; history.length = 0;
+    bubbles.clear(); $('chatLog').textContent = ''; ctl.reset();
+    host.beforeStart(); host.aiActive(true);
     $('aiSetup').classList.add('hidden'); $('aiTalk').classList.remove('hidden');
     host.toast('AI와 대화를 시작합니다');
+    logEv('대화 시작');
     go();
   }
   function stop() {
-    const was = ai.on; ai.on = false; live.close(true); live.state = 'closed'; wakeOff(); ctl.reset();
+    const was = ai.on; ai.on = false; clearTimeout(reTimer); ai.reconnecting = false; ai.handoverPending = false;
+    live.close(true); live.state = 'closed'; wakeOff(); ctl.reset(); host.aiActive(false);
     $('aiSetup').classList.remove('hidden'); $('aiTalk').classList.add('hidden');
     onState('closed');
-    if (was) host.toast('AI 대화를 종료했습니다.');
+    if (was) { host.toast('AI 대화를 종료했습니다.'); logEv('대화 종료'); }
   }
   function micPress() {
     if (!ai.on) return connect();
-    if (!live.ready) { if (live.state !== 'connecting') { ai.recover = 0; go(); } return; }
+    if (!live.ready) { if (!/connecting|reconnecting/.test(live.state) || !ai.reconnecting) { ai.retry = 0; scheduleReconnect('수동 재연결', true); } return; }
     live.mute(!live.muted); host.toast(live.muted ? '마이크를 껐습니다.' : '마이크를 켰습니다.');
   }
   function sendText() {
@@ -454,9 +550,27 @@ export function initAI(host) {
   $('aiSens').value = store.get('liveSens', '0.020'); sensShow();
   $('aiSens').oninput = () => { live.threshold = +$('aiSens').value; store.set('liveSens', $('aiSens').value); sensShow(); };
   $('aiModel').onchange = e => { ai.model = e.target.value; store.set('liveModel', ai.model === LIVE_DEFAULT ? '' : ai.model); store.set('liveProfile', '0'); if (ai.on) { host.toast('모델을 바꿔 다시 연결합니다.'); go(); } };
-  $('aiReset').onclick = () => { if (!ai.on) return; bubbles.clear(); $('chatLog').textContent = ''; ctl.reset(); host.toast('대화를 새로 시작합니다.'); go(); };
+  $('aiReset').onclick = () => { if (!ai.on) return; bubbles.clear(); history.length = 0; $('chatLog').textContent = ''; ctl.reset(); live.resumeHandle = null; live.greeted = false; ai.retry = 0; host.toast('대화를 새로 시작합니다.'); logEv('대화 새로 시작'); go(); };
+  // network / visibility recovery (1-2)
+  addEventListener('online', () => { logEv('온라인 복귀'); if (ai.on && !live.ready && !(live.ws && live.ws.readyState <= 1)) { ai.retry = 0; scheduleReconnect('네트워크 복귀', true); } });
+  addEventListener('offline', () => { logEv('오프라인'); if (ai.on) live.emit('offline'); });
+  document.addEventListener('visibilitychange', () => {
+    if (!ai.on) return;
+    if (document.hidden) { logEv('화면 숨김', '마이크 일시 정지'); if (live.ready && !live.muted) live.mute(true, true); return; }
+    logEv('화면 복귀');
+    if (live.ctx && live.ctx.state !== 'running') live.ctx.resume().catch(() => { });
+    wakeOn();
+    if (live.autoMuted) live.mute(false);
+    if (!live.ready && !/connecting|reconnecting/.test(live.state)) { ai.retry = 0; scheduleReconnect('화면 복귀', true); }
+    else if (!live.ready && ai.reconnecting) { ai.retry = 0; scheduleReconnect('화면 복귀', true); }
+  });
+  // iOS / Android may suspend audio on interruptions (calls, other apps)
+  const unlock = () => { if (ai.on && live.ctx && live.ctx.state !== 'running') live.ctx.resume().catch(() => { }); };
+  addEventListener('pointerdown', unlock, { passive: true });
+  $('aiLogCopy').onclick = () => { navigator.clipboard?.writeText(connLog.map(e => `${e.date} ${e.t}  ${e.ev}  ${e.detail}`).join('\n')).then(() => host.toast('연결 기록을 복사했습니다.')).catch(() => host.toast('복사할 수 없습니다.')); };
+  $('aiLogClear').onclick = () => { connLog.length = 0; store.set(LOG_KEY, '[]'); renderLog(); };
+  renderLog();
   addEventListener('pagehide', () => { if (ai.on) live.close(true); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && ai.on && live.ready && !live.muted) live.mute(true); });
 
-  return { ai, live, connect, stop, micPress, get on() { return ai.on; }, get hasKey() { return !!(store.get('aiKey', '') || $('aiKey').value.trim()); } };
+  return { ai, live, connect, stop, micPress, logEv, connLog, liveClosed, scheduleReconnect, get on() { return ai.on; }, get hasKey() { return !!(store.get('aiKey', '') || $('aiKey').value.trim()); } };
 }

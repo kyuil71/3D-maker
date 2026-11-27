@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Serene · Facial Animation Studio</title>
-<link rel="stylesheet" href="css/studio.css?v=20261127e">
+<link rel="stylesheet" href="css/studio.css?v=20261127f">
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body class="dark">
@@ -75,6 +75,11 @@
           <label class="lab" for="aiModel">Live 모델</label>
           <select id="aiModel" style="width:100%"></select>
           <button id="aiReset" style="margin-top:10px;width:100%">대화 새로 시작</button>
+          <div class="chk" style="margin-top:10px"><label class="switch"><input type="checkbox" id="chkAiLite" checked><span></span></label>대화 중 경량 렌더링 (30fps · 그림자 끔)</div>
+        </details>
+        <details style="margin-top:8px"><summary>연결 기록 (끊김 원인 확인)</summary>
+          <pre id="aiLog" class="connlog"></pre>
+          <div class="row"><button id="aiLogCopy" style="flex:1">복사</button><button id="aiLogClear" style="flex:1">지우기</button></div>
         </details>
       </div>
     </section>
@@ -176,6 +181,6 @@
   <div id="dHome"></div>
   <div id="dBody" class="hidden"></div>
 </aside>
-<script type="module" src="js/main.js?v=20261127e"></script>
+<script type="module" src="js/main.js?v=20261127f"></script>
 </body>
 </html>
