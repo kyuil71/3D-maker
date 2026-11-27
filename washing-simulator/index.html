@@ -407,7 +407,7 @@ body:not(.mA) #dock3d .opv{display:none}
 <div id="v3d" aria-label="세탁건조기 3D 보기. 한 손가락으로 돌리고 두 손가락으로 확대합니다."></div>
 <div id="hud" class="ui3d" hidden><div id="readout" class="readout"></div></div>
 <div id="views3d" class="ui3d" hidden>
-  <button data-view="home" data-in="ACD">전체</button><button data-view="front" data-in="A">정면</button><button data-view="left" data-in="A">왼쪽</button><button data-view="right" data-in="A">오른쪽</button><button data-view="top" data-in="A">위</button><button data-view="back" data-in="AC">뒤</button><button data-view="door" data-in="AC">도어</button><button data-view="inside" data-in="AC">드럼 안</button><button data-view="eye" data-in="AC">눈높이</button><button data-view="drawer" data-in="AC">세제함</button><button data-view="base" data-in="AC">하단 필터</button>
+  <button data-view="home" data-in="ACD">전체</button><button data-view="front" data-in="A">정면</button><button data-view="left" data-in="A">왼쪽</button><button data-view="right" data-in="A">오른쪽</button><button data-view="top" data-in="A">위</button><button data-view="back" data-in="AC">뒤</button><button data-view="door" data-in="AC">도어</button><button data-view="inside" data-in="AC">드럼 안</button><button data-view="eye" data-in="AC">눈높이</button><button data-view="drawer" data-in="AC">세제함</button><button data-view="lintv" data-in="AC">먼지 필터</button><button data-view="base" data-in="AC">배수 필터</button>
 </div>
 <nav id="dock3d" class="ui3d" aria-label="3D 보기 도구">
   <div class="rows">
@@ -1242,7 +1242,7 @@ const devCY=CFG.screen.cy;
 let renderer,scene,camera,controls,css,cssScene,devObj,wrap,KEY,RIM,FLOOR;
 const pick=[];               // 탭 가능한 메시
 const P={};                  // 움직이는 부품
-let xray=false,baseOpen=false,shakeT=0,drumLamp=false;
+let xray=false,baseOpen=false,shakeT=0,drumLamp=false,flapOpen=false,softOut=false;
 
 function fail(msg){const l=$('#load3d');if(l)l.remove();document.body.classList.remove('in3d');window.btoast&&btoast(msg)}
 
@@ -1362,32 +1362,48 @@ function build(){
  mesh(new RoundedBoxGeometry(SC.modW+3,SC.modH+3,4,2,4),M.frontB,{x:SC.cx,y:SC.cy,z:frontZ+1.5,shadow:false}); // 얇은 실버 테두리
  P.bezel=mesh(new RoundedBoxGeometry(SC.modW,SC.modH,5,2,3),M.glass.clone(),{x:SC.cx,y:SC.cy,z:frontZ+2.5,act:'bezel'});
 
- // 세제함(덮개 + 서랍)
- P.drawer=new THREE.Group();P.drawer.position.set(F.cx,F.cy,0);P.root.add(P.drawer);
- const dp={parent:P.drawer};
- mesh(new RoundedBoxGeometry(F.w,F.h,12,2,4),M.frontB,{...dp,z:frontZ-6,act:'drawer'});
- const TZ=frontZ-12-150;
- mesh(new THREE.BoxGeometry(150,6,300),M.tray,{...dp,y:-85,z:TZ,act:'drawer'});
- for(const sx of[-1,1])mesh(new THREE.BoxGeometry(6,170,300),M.tray,{...dp,x:sx*72,z:TZ,act:'drawer'});
- mesh(new THREE.BoxGeometry(150,170,6),M.tray,{...dp,z:TZ-147,act:'drawer'});
- mesh(new THREE.BoxGeometry(4,170,300),M.tray,{...dp,z:TZ,act:'drawer'});
- P.detMain=mesh(new THREE.BoxGeometry(64,1,286),M.detMain,{...dp,x:-36,y:-82,z:TZ,act:'fill:main',shadow:false});
- P.detSel=mesh(new THREE.BoxGeometry(64,1,286),M.detSel,{...dp,x:36,y:-82,z:TZ,act:'fill:sel',shadow:false});
- P.detMain.geometry.translate(0,.5,0);P.detSel.geometry.translate(0,.5,0);
+ // ── 오른쪽 위: 먼지 필터 덮개(왼쪽 경첩, 오른쪽을 눌러 엶) + 먼지 필터 + 수동 유연제함 (매뉴얼 19·51·54쪽)
+ M.cavity=new THREE.MeshStandardMaterial({color:0x2b2e31,roughness:.8,side:THREE.BackSide});
+ M.lintMesh=new THREE.MeshStandardMaterial({map:(()=>{const c=canvas(256,256),g=c.getContext('2d');g.fillStyle='#d9dcdf';g.fillRect(0,0,256,256);
+  for(let j=0;j<2;j++)for(let i=0;i<3;i++){const x=12+i*80,y=14+j*116;g.fillStyle='#5b6167';g.fillRect(x,y,72,104);g.strokeStyle='rgba(255,255,255,.18)';g.lineWidth=1;
+   for(let k=0;k<72;k+=3){g.beginPath();g.moveTo(x+k,y);g.lineTo(x+k,y+104);g.stroke()}for(let k=0;k<104;k+=3){g.beginPath();g.moveTo(x,y+k);g.lineTo(x+72,y+k);g.stroke()}}
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t})(),roughness:.7});
+ P.flap=new THREE.Group();P.flap.position.set(F.cx-F.w/2,F.cy,frontZ);P.root.add(P.flap);
+ mesh(new RoundedBoxGeometry(F.w,F.h,12,2,4),M.frontB,{parent:P.flap,x:F.w/2,z:-6,act:'flap'});
+ mesh(new THREE.BoxGeometry(F.w+4,F.h+4,360),M.cavity,{x:F.cx,y:F.cy,z:frontZ-12-180,shadow:false}); // 덮개 안쪽 칸
+ P.lint=new THREE.Group();P.lint.position.set(F.cx-36,F.cy-18,frontZ-14);P.root.add(P.lint);
+ mesh(new RoundedBoxGeometry(50,146,16,2,5),M.plastic,{parent:P.lint,act:'lint'});                      // 먼지 필터 앞 손잡이(세로로 긴 판)
+ mesh(new THREE.BoxGeometry(14,40,6),M.dark,{parent:P.lint,y:40,z:9,act:'lint',shadow:false});          // 손잡이 홈
+ mesh(new THREE.BoxGeometry(44,134,330),M.lintMesh,{parent:P.lint,z:-173,act:'lint'});                   // 망으로 된 필터 몸체
+ P.soft=new THREE.Group();P.soft.position.set(F.cx+42,F.cy+46,frontZ-14);P.root.add(P.soft);
+ mesh(new RoundedBoxGeometry(56,62,12,2,4),M.frame,{parent:P.soft,act:'soft'});                         // 수동 유연제함 앞면
+ mesh(new THREE.BoxGeometry(26,20,3),M.dark,{parent:P.soft,y:6,z:6.5,act:'soft',shadow:false});
+ mesh(new THREE.BoxGeometry(52,56,140),M.tray,{parent:P.soft,z:-76,act:'soft'});
 
- // 하단 덮개(아래 모서리 기준으로 열림) + 먼지 필터 + 배수 필터
+ // ── 아래: 세제함 전면 덮개(눌러서 아래로 젖혀 엶) + 자동 세제함(일반·선택) + 배수 필터·잔수 제거 호스 (매뉴얼 19·26쪽)
  const B=CFG.base,bh=B.y1-B.y0;
  P.base=new THREE.Group();P.base.position.set(0,B.y0,frontZ);P.root.add(P.base);
  mesh(new RoundedBoxGeometry(W-2,bh,14,2,4),M.frontB,{parent:P.base,y:bh/2,z:-7,act:'base'});
  mesh(new RoundedBoxGeometry(60,6,4,1,2),M.dark,{parent:P.base,y:bh-14,z:1,act:'base',shadow:false});
- P.lint=new THREE.Group();P.lint.position.set(-150,103,frontZ-170);P.root.add(P.lint);
- const lg=new THREE.CylinderGeometry(32,32,220,32);lg.rotateX(Math.PI/2);
- mesh(lg,M.plastic,{parent:P.lint,act:'lint'});
- mesh(new RoundedBoxGeometry(70,20,24,2,6),M.plastic,{parent:P.lint,z:118,act:'lint'});
+ mesh(new THREE.BoxGeometry(W-36,bh-8,380),M.cavity,{y:B.y0+bh/2,z:frontZ-16-190,shadow:false}); // 덮개 안쪽 칸
+ M.shell=new THREE.MeshPhysicalMaterial({color:0xe9ecef,roughness:.35,transparent:true,opacity:.55,depthWrite:false});
+ P.drawer=new THREE.Group();P.root.add(P.drawer);const dp={parent:P.drawer};
+ const DY=B.y0+10+49,DZ=frontZ-18;
+ for(const [k,x] of [['main',40],['sel',206]]){
+  mesh(new RoundedBoxGeometry(158,100,12,2,6),M.plastic,{...dp,x,y:DY,z:DZ-6,act:'drawer'});              // 세제함 앞면(잡는 곳)
+  mesh(new RoundedBoxGeometry(70,12,4,1,3),M.dark,{...dp,x,y:DY+22,z:DZ+1,act:'drawer',shadow:false});   // 손잡이 홈
+  mesh(new THREE.BoxGeometry(152,96,360),M.shell,{...dp,x,y:DY,z:DZ-12-180,act:'fill:'+k,shadow:false}); // 반투명 통
+  mesh(new THREE.CylinderGeometry(25,25,10,28),M.dark,{...dp,x:x-30,y:DY+53,z:DZ-62,act:'fill:'+k});      // 돌려 여는 마개
+  const liq=mesh(new THREE.BoxGeometry(142,1,344),k==='main'?M.detMain:M.detSel,{...dp,x,y:DY-46,z:DZ-12-180,act:'fill:'+k,shadow:false});
+  liq.geometry.translate(0,.5,0);if(k==='main')P.detMain=liq;else P.detSel=liq}
  const dg=new THREE.CylinderGeometry(38,38,26,32);dg.rotateX(Math.PI/2);
  P.drainG=new THREE.Group();P.root.add(P.drainG);
- mesh(dg,M.drain,{parent:P.drainG,x:190,y:100,z:frontZ-50,act:'drain'});
- mesh(new THREE.BoxGeometry(56,10,10),M.drain,{parent:P.drainG,x:190,y:100,z:frontZ-34,act:'drain'});
+ mesh(dg,M.drain,{parent:P.drainG,x:-200,y:98,z:frontZ-44,act:'drain'});                                 // 배수 필터 마개
+ mesh(new THREE.BoxGeometry(56,10,10),M.drain,{parent:P.drainG,x:-200,y:98,z:frontZ-28,act:'drain'});
+ M.hose=M.hose||new THREE.MeshStandardMaterial({color:0xdadddf,roughness:.6});
+ const hg=new THREE.CylinderGeometry(9,9,70,16);hg.rotateX(Math.PI/2);
+ mesh(hg,M.hose,{parent:P.drainG,x:-286,y:80,z:frontZ-60,act:'drain'});                                   // 잔수 제거 호스
+ mesh(new THREE.CylinderGeometry(11,11,12,16).rotateX(Math.PI/2),M.dark,{parent:P.drainG,x:-286,y:80,z:frontZ-22,act:'drain'});
 
  // 도어 크기만큼 패인 원형 홈(닫으면 도어에 가려 안 보임). 홈 바닥에 개스킷·힌지 플레이트·잠금 구멍
  const RD=D.recess,SZ=frontZ-RD;
@@ -1500,7 +1516,8 @@ const VIEWS={
  screen:()=>VIEWS.op2(),
  door:()=>({t:[0,CFG.door.cy,CFG.frontZ],dir:[0,.06,1],d:fitDist(760,760)}),
  inside:()=>({t:[0,CFG.door.cy,0],dir:[.04,.06,1],d:900}),
- drawer:()=>({t:[CFG.flap.cx,CFG.flap.cy,CFG.frontZ+60],dir:[.3,.5,1],d:fitDist(460,460)}),
+ drawer:()=>({t:[110,110,CFG.frontZ+40],dir:[.2,.55,1],d:fitDist(640,420)}),   // 아래 자동 세제함
+ lintv:()=>({t:[CFG.flap.cx,CFG.flap.cy,CFG.frontZ+60],dir:[.3,.4,1],d:fitDist(460,460)}), // 오른쪽 위 먼지 필터
  base:()=>({t:[0,110,CFG.frontZ],dir:[0,.4,1],d:fitDist(780,420)}),
  eye:()=>({t:[0,560,300],p:[0,1600,1150]}) // 서 있는 사람 눈높이(약 1.6m)에서 내려다보기
 };
@@ -1518,10 +1535,11 @@ const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 function act(a,hitObj){
  const busy=window.cycleActive&&cycleActive()&&!S.cycle.paused;
  if(a==='door'){if(ajar&&S.door){ajar=false;return}bench('door');return}
- if(a==='drawer'){bench('box');return}
- if(a.startsWith('fill:')){if(S.boxIn){bench('box');return}bench(a);return}
- if(a==='base'){baseOpen=!baseOpen;btoast(baseOpen?'하단 덮개를 열었어요. 먼지 필터와 배수 필터를 누를 수 있어요.':'하단 덮개를 닫았어요.');return}
- if(a==='lint'){if(!baseOpen){baseOpen=true;return}if(busy){btoast('동작 중에는 먼지 필터를 뺄 수 없어요.');return}bench('lint');btoast(S.lint?'먼지 필터를 끼웠어요.':'먼지 필터를 뺐어요.');return}
+ if(a==='drawer'||a.startsWith('fill:')){if(!baseOpen){baseOpen=true;btoast('세제함 전면 덮개를 열었어요.');return}if(a==='drawer'||S.boxIn){bench('box');return}bench(a);return}
+ if(a==='flap'){flapOpen=!flapOpen;btoast(flapOpen?'먼지 필터 덮개를 열었어요. 먼지 필터와 수동 유연제함을 누를 수 있어요.':'먼지 필터 덮개를 닫았어요.');return}
+ if(a==='soft'){if(!flapOpen){flapOpen=true;return}softOut=!softOut;btoast(softOut?'수동 유연제함을 꺼냈어요.':'수동 유연제함을 넣었어요.');return}
+ if(a==='base'){if(baseOpen&&!S.boxIn){btoast('자동 세제함을 먼저 끝까지 밀어 넣으세요.');return}baseOpen=!baseOpen;btoast(baseOpen?'세제함 전면 덮개를 열었어요. 자동 세제함과 배수 필터를 누를 수 있어요.':'세제함 전면 덮개를 닫았어요.');return}
+ if(a==='lint'){if(!flapOpen){flapOpen=true;return}if(busy){btoast('동작 중에는 먼지 필터를 뺄 수 없어요.');return}bench('lint');btoast(S.lint?'먼지 필터를 끼웠어요.':'먼지 필터를 뺐어요.');return}
  if(a==='drain'){if(!baseOpen){baseOpen=true;return}if(!S.drainClog){btoast('배수 필터는 깨끗해요.');return}bench('cleandrain');return}
  if(a==='bezel'){if(wrap.classList.contains('noTouch')){flyTo('op2');btoast('화면을 조작하기 좋게 정면으로 옮겼어요.')}return}
  if(a==='drum'){if(S.door)openSheet(true);else flyTo('door')}
@@ -1866,7 +1884,7 @@ function updateArms(show){
 }
 
 /* ---------- 매 프레임: S를 읽어 표현 ---------- */
-let last=0,ang=0,doorA=0,drawerZ=0,baseA=0,lintZ=0,cssOp=-1,cssTouch=null,fpsN=0,fpsT=0,lowQ=false;
+let last=0,ang=0,doorA=0,drawerZ=0,baseA=0,lintZ=0,flapA=0,softZ=0,cssOp=-1,cssTouch=null,fpsN=0,fpsT=0,lowQ=false;
 const _c=new THREE.Vector3(),_s=new THREE.Vector3();
 function frame(now){
  const dt=Math.min(.1,(now-last)/1000);last=now;
@@ -1891,10 +1909,12 @@ function frame(now){
  const lampK=S.door?1:.7; // 문이 닫혀 있으면 드럼 조명 30% 어둡게
  P.light.intensity+=((drumLamp?4.2*lampK:S.power&&(S.light||S.door)?1.4:0)-P.light.intensity)*Math.min(1,dt*6);P.fill.intensity=1.6*lampK;
  // 세제함·하단 덮개·필터
- drawerZ+=((S.boxIn?0:260)-drawerZ)*Math.min(1,dt*5);P.drawer.position.z=drawerZ;
- P.detMain.scale.y=Math.max(.5,S.det.main.ml/S.det.main.cap*150);P.detSel.scale.y=Math.max(.5,S.det.sel.ml/S.det.sel.cap*150);
- baseA+=((baseOpen?1.2:0)-baseA)*Math.min(1,dt*5);P.base.rotation.x=baseA;
- lintZ+=((S.lint?0:260)-lintZ)*Math.min(1,dt*5);P.lint.position.z=CFG.frontZ-170+lintZ;P.lint.visible=baseA>.05||!S.lint;P.drainG.visible=baseA>.05;
+ drawerZ+=((S.boxIn?0:300)-drawerZ)*Math.min(1,dt*5);P.drawer.position.z=drawerZ;P.drawer.visible=baseA>.05||!S.boxIn;
+ flapA+=((flapOpen?1.75:0)-flapA)*Math.min(1,dt*5);P.flap.rotation.y=-flapA;
+ softZ+=((softOut?150:0)-softZ)*Math.min(1,dt*5);P.soft.position.z=CFG.frontZ-14+softZ;P.soft.visible=flapA>.05||softOut;
+ P.detMain.scale.y=Math.max(.5,S.det.main.ml/S.det.main.cap*88);P.detSel.scale.y=Math.max(.5,S.det.sel.ml/S.det.sel.cap*88);
+ baseA+=((baseOpen?1.45:0)-baseA)*Math.min(1,dt*5);P.base.rotation.x=baseA;
+ lintZ+=((S.lint?0:300)-lintZ)*Math.min(1,dt*5);P.lint.position.z=CFG.frontZ-14+lintZ;P.lint.visible=flapA>.05||!S.lint;P.drainG.visible=baseA>.05;
  updateMotion(dt,now,vis,st,wDrum);soundUpdate(dt,now,st&&st.k);
  // 화면: 정면에서 벗어나면 흐려지고, 약 53° 넘으면 터치 막음
  if(DEV.dataset.host==='css3d'){
