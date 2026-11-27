@@ -290,7 +290,7 @@ body.in3d #v3d{display:block}
 body.in3d .wrap{display:none}
 #v3d canvas{display:block;width:100%;height:100%;touch-action:none}
 .css3d{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.dev3d{width:1124px;height:640px;pointer-events:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:opacity .2s}
+.dev3d{width:1310px;height:694px;pointer-events:auto;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:opacity .2s}
 .dev3d.noTouch{pointer-events:none}
 #device.h3d{position:absolute;left:0;top:0;margin:0;transform:none!important;border-radius:22px;box-shadow:none}
 #device.hov{left:50%;top:50%;margin:-320px 0 0 -562px;transform-origin:center center}
@@ -307,43 +307,78 @@ body.in3d .ui3d[hidden]{display:none!important}
 #views3d::-webkit-scrollbar{display:none}
 #views3d button{flex:0 0 auto;min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(8px);font-size:16px;color:var(--ink)}
 #views3d button.on{background:var(--blu);border-color:var(--blu);color:#fff}
-#dock3d{position:fixed;left:0;right:0;bottom:0;z-index:12;flex-direction:column;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
-#dock3d .tools,#dock3d .modes{display:flex;gap:6px;justify-content:center}
+#dock3d{position:fixed;left:0;right:0;bottom:0;z-index:12;flex-direction:row;align-items:stretch;gap:8px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+#dock3d .rows{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+#dock3d .brand{flex:0 0 auto;align-self:center;max-width:150px;font-size:16px;font-weight:600;line-height:1.25;color:var(--ink);padding:0 4px 0 6px}
+#dock3d .brand small{display:block;font-weight:400;color:var(--ink2);font-size:16px;margin-top:2px}
+@media (max-width:640px){#dock3d .brand{max-width:84px}#dock3d .brand small{display:none}}
+#dock3d .tools,#dock3d .modes{display:flex;gap:6px;justify-content:center;overflow-x:auto;scrollbar-width:none}
+#dock3d .tools::-webkit-scrollbar,#dock3d .modes::-webkit-scrollbar{display:none}
 #dock3d .tools button{min-height:44px}
 #dock3d .modes button{min-height:52px;font-weight:600}
-#dock3d button{flex:1;min-width:0;max-width:170px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);font-size:16px;color:var(--ink);padding:0 4px;line-height:1.15}
+#dock3d button{flex:1 0 auto;min-width:0;max-width:170px;white-space:nowrap;border-radius:14px;border:1px solid var(--line);background:var(--panel2);font-size:16px;color:var(--ink);padding:0 4px;line-height:1.15}
 #dock3d button.on{background:var(--blu);border-color:var(--blu);color:#fff}
 #big2d{position:fixed;left:0;right:0;top:0;bottom:var(--dockH);z-index:9;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 8px 10px;background:#0e1113}
 #big2dIn{position:relative;width:100%;flex:1;min-height:0}
-#sheet{position:fixed;left:0;right:0;bottom:0;z-index:25;flex-direction:column;gap:12px;max-width:1180px;margin:0 auto;max-height:74vh;overflow:auto;padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));background:var(--pg);color:var(--ink);border-radius:20px 20px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.28)}
-#sheet .sh{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:-12px;background:var(--pg);padding:4px 0 6px;z-index:1}
-#sheet .sh h2{margin:0;font-size:18px}
-#sheet .sh button{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);font-size:16px}
-#sheet .bdock{position:static;padding:0;background:none;border:0;backdrop-filter:none;flex-wrap:wrap;justify-content:flex-start}
-#sheet .grp{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.sheet3d{position:fixed;left:0;right:0;bottom:0;z-index:25;flex-direction:column;gap:12px;max-width:1180px;margin:0 auto;max-height:74vh;overflow:auto;padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--pg) 97%,transparent);backdrop-filter:blur(14px);/* 완전 불투명이면 크롬이 3D 캔버스 일부를 가려진 것으로 보고 안 그리는 문제 회피 */color:var(--ink);border-radius:20px 20px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.28)}
+.sheet3d .sh{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:-12px;background:transparent;padding:4px 0 6px;z-index:1}
+.sheet3d .sh h2{margin:0;font-size:18px}
+.sheet3d .sh button{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);font-size:16px}
+.sheet3d .bdock{position:static;padding:0;background:none;border:0;backdrop-filter:none;flex-wrap:wrap;justify-content:flex-start}
+.sheet3d .grp{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
 #load3d{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:#d9dde1;color:#20252a;font-size:16px;transition:opacity .4s}
 #load3d.out{opacity:0;pointer-events:none}
 
 /* ----- 보기 모드 (3D-BRIDGE) ----- */
 body{--dockH:calc(118px + env(safe-area-inset-bottom,0px));--split:40vh;--splitW:56vw}
-body.mB #v3d,body.mB #top3d,body.mB #views3d{display:none!important}
+body.mB #v3d,body.mB #views3d{display:none!important}
 body.mB .tools [data-d=views],body.mB .tools [data-d=xray]{display:none}
 body.mC #v3d{top:var(--split);bottom:var(--dockH)}
 body.mC #big2d{bottom:auto;height:var(--split)}
-body.mC #top3d{top:var(--split);padding-top:8px}
-body.mC #top3d .ttl{display:none}
 @media (orientation:landscape){
  body.mC #v3d{top:0;left:var(--splitW)}
  body.mC #big2d{height:auto;bottom:var(--dockH);right:auto;width:var(--splitW)}
- body.mC #top3d{top:0;left:var(--splitW);padding-top:calc(10px + env(safe-area-inset-top,0px))}
  body.mC #views3d{left:var(--splitW)}
 }
-body.mD #top3d,body.mD #dock3d,body.mD #views3d{display:none!important}
+body.mD #hud,body.mD #dock3d,body.mD #views3d{display:none!important}
 #dfloat{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:12;gap:8px}
 #dfloat button{min-height:48px;padding:0 16px;border-radius:24px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(10px);color:var(--ink);font-size:16px}
 #dfloat button.on{background:var(--blu);border-color:var(--blu);color:#fff}
 body.mD #btoast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 body:not(.mD) #btoast{bottom:calc(var(--dockH) + 10px)}
+
+/* ----- 상태(HUD): 상태 버튼으로 펼칠 때만 (3D-BRIDGE) ----- */
+#hud{position:fixed;right:10px;bottom:calc(var(--dockH) + 64px);z-index:12;flex-direction:column;width:min(360px,calc(100vw - 20px));padding:8px 12px;border-radius:14px;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink)}
+#hud .readout{margin-top:0;grid-template-columns:1fr 1fr}
+/* ----- LCD: 화면 좌우 여백을 같게, 여백까지 하나의 글라스로 ----- */
+#device.lcd{width:1310px;height:694px;border-radius:12px;background:#000;box-shadow:none}
+#device.lcd #scr{left:143px;top:47px;border-radius:0}
+#device.lcd .pwz{width:143px;height:694px}
+#device.lcd .pwz small{bottom:30px}
+#device.lcd::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:60;background:linear-gradient(160deg,rgba(255,255,255,.075) 0%,rgba(255,255,255,.02) 30%,rgba(255,255,255,0) 55%,rgba(255,255,255,.03) 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+#device.hov{left:50%;top:50%;margin:0;transform-origin:center center}
+/* ----- 꾸미기 ----- */
+.sheet3d .tabs{display:flex;gap:6px;flex:1;justify-content:center}
+.sheet3d .tabs button{min-height:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:var(--panel2);font-size:16px;color:var(--ink)}
+.sheet3d .tabs button.on{background:var(--blu);border-color:var(--blu);color:#fff}
+.sheet3d h3{font-size:16px;margin:8px 0 6px;color:var(--ink2);font-weight:600}
+#deco .pane{display:flex;flex-direction:column;gap:10px}
+#deco .pane[hidden]{display:none!important}
+#deco .chips{display:flex;flex-wrap:wrap;gap:8px}
+#deco .chips button,#deco .chip{min-height:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:var(--panel2);font-size:16px;color:var(--ink)}
+#deco .chips button.on{background:var(--blu);border-color:var(--blu);color:#fff}
+#deco .sws button{width:44px;padding:0;border:2px solid var(--line)}
+#deco .sws button.on{outline:3px solid var(--blu);outline-offset:2px;background:inherit}
+#deco .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+#deco .pick{display:flex;align-items:center;gap:8px;font-size:16px}
+#deco .pick input{width:52px;height:44px;border:0;background:none;padding:0}
+#deco .sl{display:grid;grid-template-columns:1fr 1fr 44px;align-items:center;gap:10px;font-size:16px}
+#deco .sl small{display:block;color:var(--ink2);font-size:16px}
+#deco .sl input{width:100%;accent-color:var(--blu);height:36px}
+#deco .sl b{text-align:right;font-variant-numeric:tabular-nums}
+#deco .note{color:var(--ink2);font-size:16px;margin:4px 0 0}
+#deco #litList button{min-width:120px}
+body.mA #v3d{bottom:var(--dockH)} /* 3D가 도크 뒤로 가려지지 않게 */
 </style>
 </head>
 <body>
@@ -367,23 +402,39 @@ body:not(.mD) #btoast{bottom:calc(var(--dockH) + 10px)}
 <div id="btoast"></div><!-- 3D-BRIDGE: hidden 제거 -->
 <!-- ========== 3D 레이어 (3D-BRIDGE) ========== -->
 <div id="v3d" aria-label="세탁건조기 3D 보기. 한 손가락으로 돌리고 두 손가락으로 확대합니다."></div>
-<div id="top3d" class="ui3d">
-  <div class="ttl">BESPOKE AI 콤보 3D<small id="mdl3d">686 × 1,110 × 875 mm</small></div>
-  <div id="hud" class="ui3d" hidden><div id="readout" class="readout"></div></div>
-</div>
+<div id="hud" class="ui3d" hidden><div id="readout" class="readout"></div></div>
 <div id="views3d" class="ui3d" hidden>
-  <button data-view="home" data-in="ACD">전체</button><button data-view="front" data-in="A">정면</button><button data-view="left" data-in="A">왼쪽</button><button data-view="right" data-in="A">오른쪽</button><button data-view="top" data-in="A">위</button><button data-view="back" data-in="AC">뒤</button><button data-view="screen" data-in="A">화면</button><button data-view="door" data-in="AC">도어</button><button data-view="inside" data-in="AC">드럼 안</button><button data-view="eye" data-in="AC">눈높이</button><button data-view="drawer" data-in="AC">세제함</button><button data-view="base" data-in="AC">하단 필터</button>
+  <button data-view="op1" data-in="A">화면 조작1</button><button data-view="op2" data-in="A">화면 조작2</button><button data-view="home" data-in="ACD">전체</button><button data-view="front" data-in="A">정면</button><button data-view="left" data-in="A">왼쪽</button><button data-view="right" data-in="A">오른쪽</button><button data-view="top" data-in="A">위</button><button data-view="back" data-in="AC">뒤</button><button data-view="door" data-in="AC">도어</button><button data-view="inside" data-in="AC">드럼 안</button><button data-view="eye" data-in="AC">눈높이</button><button data-view="drawer" data-in="AC">세제함</button><button data-view="base" data-in="AC">하단 필터</button>
 </div>
 <nav id="dock3d" class="ui3d" aria-label="3D 보기 도구">
-  <div class="tools"><button data-d="views">시점</button><button data-d="xray" aria-pressed="false">내부 보기</button><button data-d="sheet">실물 조작</button><button data-d="hud">상태</button></div>
+  <div class="brand">BESPOKE AI 콤보 3D<small>686 × 1,110 × 875 mm</small></div>
+  <div class="rows">
+  <div class="tools"><button data-d="views">시점</button><button data-d="xray" aria-pressed="false">내부 보기</button><button data-d="sheet">실물 조작</button><button data-d="deco">꾸미기</button><button data-d="hud">상태</button></div>
   <div class="modes" role="tablist" aria-label="보기 모드"><button data-m="A" role="tab">전체 보기</button><button data-m="B" role="tab">화면만</button><button data-m="C" role="tab">화면+본체</button><button data-m="D" role="tab">관찰</button></div>
+  </div>
 </nav>
 <div id="dfloat" class="ui3d" hidden><button data-d="spin" aria-pressed="true">자동 회전</button><button data-m="A">관찰 끝내기</button></div>
 <div id="big2d" class="ui3d" hidden><div id="big2dIn"></div></div>
-<section id="sheet" class="ui3d" hidden aria-label="실물 조작">
+<section id="sheet" class="ui3d sheet3d" hidden aria-label="실물 조작">
   <div class="sh"><h2>실물 조작</h2><button data-d="sheet">닫기</button></div>
   <div class="grp" id="benchg"></div>
   <div id="bdock" class="bdock"></div>
+</section>
+<section id="deco" class="ui3d sheet3d" hidden aria-label="꾸미기">
+  <div class="sh"><h2>꾸미기</h2><div class="tabs" role="tablist"><button data-tab="snd" class="on">소리</button><button data-tab="lit">조명</button><button data-tab="mat">소재·색상</button></div><button data-d="deco">닫기</button></div>
+  <div data-pane="snd" class="pane">
+   <label class="sl"><span>기계 소리 <small>모터·드럼·물·펌프</small></span><input type="range" min="0" max="100" value="60" data-vol="mach"><b>60</b></label>
+   <label class="sl"><span>버튼음 <small>삑 소리·알림음</small></span><input type="range" min="0" max="100" value="60" data-vol="beep"><b>60</b></label>
+   <label class="sl"><span>음성 안내</span><input type="range" min="0" max="100" value="60" data-vol="voice"><b>60</b></label>
+   <p class="note">휴대폰 무음 모드에서는 소리가 나지 않을 수 있어요. 화면을 한 번 누르면 소리가 시작돼요.</p>
+  </div>
+  <div data-pane="lit" class="pane" hidden><div class="chips" id="litList"></div></div>
+  <div data-pane="mat" class="pane" hidden>
+   <h3>파트</h3><div class="chips" id="partList"></div>
+   <h3>소재</h3><div class="chips" id="matList"></div>
+   <h3>색상</h3><div class="chips sws" id="colList"></div>
+   <div class="row"><label class="pick">직접 고르기 <input type="color" id="colPick" value="#b5b8ba"></label><button id="partReset" class="chip">이 파트 원래대로</button><button id="allReset" class="chip">전체 원래대로</button></div>
+  </div>
 </section>
 <div id="load3d">3D 모델을 준비하고 있어요…</div>
 <script>/* 3D-BRIDGE: 3D를 불러오지 못하면 기존 2D 화면으로 */setTimeout(function(){if(!window.__3dReady){var l=document.getElementById('load3d');if(l)l.remove()}},15000)</script>
@@ -510,7 +561,7 @@ function remainSec(cy){if(!cy)return 0;let r=0;for(let i=cy.idx;i<cy.stages.leng
 let AC;
 function beep(f=880,d=.05,g=.05,force){if(!force&&(S.set.sound!=='소리'))return;if(!S.vol)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),v=AC.createGain();o.frequency.value=f;v.gain.value=g*S.vol/100;o.connect(v).connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
 function melody(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.2,.07),i*190))}
-function say(t){try{if(!('speechSynthesis' in window)||!S.vol)return;const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.volume=S.vol/100;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function say(t){try{const _vv=S.voiceVol??S.vol/* 3D-BRIDGE: 음성 볼륨 분리 */;if(!('speechSynthesis' in window)||!_vv)return;const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.volume=_vv/100;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
 
 /* ---------- 문 ---------- */
 function doorBlock(){
@@ -1148,7 +1199,7 @@ document.addEventListener('input',e=>{if(e.target.dataset.bin==='kg'){const nk=+
 document.addEventListener('change',e=>{if(e.target.dataset.bin==='kg'&&S.power)render()});
 
 /* ---------- 크기 맞추기 ---------- */
-function fit(){/* 3D-BRIDGE */const _d=window.__DEV||$('#device');if(!_d)return;const _h=_d.dataset.host;if(_h==='css3d'){_d.style.transform='';return}if(_h==='overlay'){const o=_d.parentElement,s=Math.min(o.clientWidth/1124,o.clientHeight/640)*.98;_d.style.transform=`scale(${s})`;return}const sc=Math.min(innerWidth/1124,innerHeight/640)*.98;$('#device').style.transform=`scale(${sc})`;$('#stagewrap').style.height=640*sc+'px'}
+function fit(){/* 3D-BRIDGE */const _d=window.__DEV||$('#device');if(!_d)return;const _h=_d.dataset.host;if(_h==='css3d'){_d.style.transform='';return}if(_h==='overlay'){const o=_d.parentElement,s=Math.min(o.clientWidth/_d.offsetWidth,o.clientHeight/_d.offsetHeight)*.98;_d.style.transform=`translate(-50%,-50%) scale(${s})`;return}const sc=Math.min(innerWidth/1124,innerHeight/640)*.98;$('#device').style.transform=`scale(${sc})`;$('#stagewrap').style.height=640*sc+'px'}
 addEventListener('resize',fit);fit();
 render();renderReadout();requestAnimationFrame(draw);
 window.__S=S;window.__ACT=ACT;window.__bixby=bixby;
@@ -1182,11 +1233,11 @@ const FINISH={'#B5B8BA':{metal:1},'#5E6266':{metal:1},'#8E9296':{metal:1},'#BDB6
 
 const S=window.__S, $=s=>document.querySelector(s), DEV=document.getElementById('device');
 window.__DEV=DEV; // 3D 레이어로 옮겨 붙인 뒤에도 기존 fit()이 찾을 수 있게
-const DEV_W=1124,DEV_H=640,SCR_X=88,SCR_Y=20;
+const DEV_W=1310,DEV_H=694,SCR_X=143,SCR_Y=47; // LCD 모듈 196×104mm, 화면 좌우 여백 같게(#device.lcd)
 const devCX=CFG.screen.cx-(SCR_X+512-DEV_W/2)*CFG.screen.pxmm; // 기기 모듈 중심 (화면은 전원 영역만큼 오른쪽)
 const devCY=CFG.screen.cy;
 
-let renderer,scene,camera,controls,css,cssScene,devObj,wrap;
+let renderer,scene,camera,controls,css,cssScene,devObj,wrap,KEY,RIM,FLOOR;
 const pick=[];               // 탭 가능한 메시
 const P={};                  // 움직이는 부품
 let xray=false,baseOpen=false,shakeT=0;
@@ -1240,21 +1291,21 @@ const M={
  frontA:new THREE.MeshPhysicalMaterial({color:0xb5b8ba}), // 압출 형상용(UV=mm)
  frontB:new THREE.MeshPhysicalMaterial({color:0xb5b8ba}), // 상자 형상용(UV=0..1)
  side:new THREE.MeshPhysicalMaterial({color:0x1d1f22,metalness:.2,roughness:.55,envMapIntensity:.45,normalMap:embossNormal(),normalScale:new THREE.Vector2(1.3,1.3),clearcoat:.15,clearcoatRoughness:.4}),
- dark:new THREE.MeshStandardMaterial({color:0x1f2124,metalness:.1,roughness:.7,envMapIntensity:.4}),
+ dark:new THREE.MeshPhysicalMaterial({color:0x1f2124,metalness:.1,roughness:.7,envMapIntensity:.4}),
  liner:new THREE.MeshStandardMaterial({color:0x0b0c0d,roughness:.95,side:THREE.BackSide}),
  glass:new THREE.MeshPhysicalMaterial({color:0x020203,metalness:0,roughness:.1,clearcoat:.7,clearcoatRoughness:.04,envMapIntensity:.35,side:THREE.DoubleSide}),
  window:new THREE.MeshPhysicalMaterial({color:0xe4e8eb,metalness:0,roughness:.03,transmission:.94,thickness:10,ior:1.5,envMapIntensity:.5,attenuationColor:new THREE.Color(0x4a545c),attenuationDistance:90,side:THREE.DoubleSide}),
- rubber:new THREE.MeshStandardMaterial({color:0x8b9196,roughness:.78,side:THREE.DoubleSide}),
+ rubber:new THREE.MeshPhysicalMaterial({color:0x8b9196,roughness:.78,side:THREE.DoubleSide}),
  frontC:new THREE.MeshPhysicalMaterial({color:0xb5b8ba,side:THREE.DoubleSide}), // 도어 자리(원형 함몰)
- frame:new THREE.MeshStandardMaterial({color:0x55595d,metalness:.25,roughness:.5,side:THREE.DoubleSide}), // 도어 뒤 프레임
- hinge:new THREE.MeshStandardMaterial({color:0xc9ccce,metalness:.3,roughness:.45}),
+ frame:new THREE.MeshPhysicalMaterial({color:0x55595d,metalness:.25,roughness:.5,side:THREE.DoubleSide}), // 도어 뒤 프레임
+ hinge:new THREE.MeshPhysicalMaterial({color:0xc9ccce,metalness:.3,roughness:.45}),
  yellow:new THREE.MeshStandardMaterial({color:0xe9b43c,roughness:.5}),
  spider:new THREE.MeshPhysicalMaterial({color:0xcdd2d6,metalness:.92,roughness:.2,envMapIntensity:.7}),
  back:new THREE.MeshPhysicalMaterial({map:backTex(),metalness:.85,roughness:.3,envMapIntensity:.5}),
  drumIn:(()=>{const p=pillowMaps();return new THREE.MeshPhysicalMaterial({map:p.col,normalMap:p.nrm,normalScale:new THREE.Vector2(1.4,1.4),metalness:.88,roughness:.26,envMapIntensity:.55,side:THREE.BackSide})})(),
  steel:new THREE.MeshPhysicalMaterial({map:perfTex(),metalness:.85,roughness:.3}),
- plastic:new THREE.MeshStandardMaterial({color:0xd8dbde,roughness:.45}),
- tray:new THREE.MeshStandardMaterial({color:0x3a3d40,roughness:.6}),
+ plastic:new THREE.MeshPhysicalMaterial({color:0xd8dbde,roughness:.45}),
+ tray:new THREE.MeshPhysicalMaterial({color:0x3a3d40,roughness:.6}),
  chrome:new THREE.MeshPhysicalMaterial({color:0xd0d4d8,metalness:1,roughness:.18}),
  led:new THREE.MeshStandardMaterial({color:0x220404,emissive:0xff2a1a,emissiveIntensity:0}),
  drain:new THREE.MeshStandardMaterial({color:0x4b4f53,roughness:.6,emissive:0xff3b2f,emissiveIntensity:0}),
@@ -1301,7 +1352,7 @@ function build(){
  // 화면 베젤(블랙 글라스). 위에 실제 7인치 UI(CSS3D)가 겹쳐짐
  const SC=CFG.screen;
  mesh(new RoundedBoxGeometry(SC.modW+3,SC.modH+3,4,2,4),M.frontB,{x:SC.cx,y:SC.cy,z:frontZ+1.5,shadow:false}); // 얇은 실버 테두리
- P.bezel=mesh(new RoundedBoxGeometry(SC.modW,SC.modH,5,2,3),M.glass,{x:SC.cx,y:SC.cy,z:frontZ+2.5,act:'bezel'});
+ P.bezel=mesh(new RoundedBoxGeometry(SC.modW,SC.modH,5,2,3),M.glass.clone(),{x:SC.cx,y:SC.cy,z:frontZ+2.5,act:'bezel'});
 
  // 세제함(덮개 + 서랍)
  P.drawer=new THREE.Group();P.drawer.position.set(F.cx,F.cy,0);P.root.add(P.drawer);
@@ -1358,7 +1409,8 @@ function build(){
   const l=mesh(new RoundedBoxGeometry(120,30,CFG.drum.depth-30,3,15),M.spider,{...ddp,x:Math.cos(a-.1)*(R-14),y:Math.sin(a-.1)*(R-14),z:dz-10});l.rotation.z=a-.1-Math.PI/2}
  const hub=new THREE.SphereGeometry(52,32,16,0,Math.PI*2,0,Math.PI/2);hub.rotateX(Math.PI/2);hub.scale(1,1,.5);
  mesh(hub,M.spider,{...ddp,z:bz+6});
- P.light=new THREE.PointLight(0xffdcae,0,900,0);P.light.position.set(0,D.cy+190,CFG.drum.front-60);P.root.add(P.light);
+ // 드럼 조명: 안쪽(뒤)으로만 비추는 스포트라이트. 전면 패널에 빛이 새지 않게
+ P.light=new THREE.SpotLight(0xffdcae,0,1100,1.05,.6,0);P.light.position.set(0,D.cy+170,CFG.drum.front-20);P.light.target.position.set(0,D.cy-120,CFG.drum.front-CFG.drum.depth);P.root.add(P.light,P.light.target);
 
  // 도어: 평평한 앞 유리(바깥 블랙, 가운데 투명) + 회색 프레임 + 깊은 투명 볼
  P.door=new THREE.Group();P.door.position.set(hx,D.cy,hz);P.root.add(P.door);
@@ -1384,7 +1436,7 @@ function build(){
   mesh(new THREE.TubeGeometry(cv,40,10,12),M.hose,{});}
 
  // 바닥: 그림자 + 접지 그림자
- const fl=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),new THREE.ShadowMaterial({opacity:.08}));fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;scene.add(fl);
+ const fl=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),FLOOR=new THREE.ShadowMaterial({opacity:.08}));fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;scene.add(fl);
  const blob=new THREE.Mesh(new THREE.PlaneGeometry(1150,1350),new THREE.MeshBasicMaterial({map:blobTex(),transparent:true,depthWrite:false}));blob.rotation.x=-Math.PI/2;blob.position.set(0,.6,-5);scene.add(blob);
 }
 
@@ -1413,7 +1465,9 @@ const VIEWS={
  right:()=>({t:[0,540,0],dir:[1,.12,.06],d:fitDist(1250,1650)}),
  back:()=>({t:[0,540,0],dir:[.2,.15,-1],d:fitDist(1100,1650)}),
  top:()=>({t:[0,700,0],dir:[0,1,.4],d:fitDist(1100,1100)}),
- screen:()=>({t:[CFG.screen.cx,CFG.screen.cy,CFG.frontZ],dir:[0,0,1],d:fitDist(190,118)}),
+ op1:()=>({t:[0,890,CFG.frontZ],dir:[0,360,610],d:Math.max(708,fitDist(790,0))}), // 화면 조작1: 첨부 화면에서 역산한 카메라(높이 1,250mm, 앞 1,020mm). 좁은 화면이면 폭에 맞춰 뒤로
+ op2:()=>({t:[CFG.screen.cx+6,CFG.screen.cy-4,CFG.frontZ],dir:[0,.1,1],d:fitDist(224,134)}), // 화면 조작2: LCD 모듈(실버 테두리)이 화면 폭의 약 89%를 채우는 시점
+ screen:()=>VIEWS.op2(),
  door:()=>({t:[0,CFG.door.cy,CFG.frontZ],dir:[0,.06,1],d:fitDist(760,760)}),
  inside:()=>({t:[0,CFG.door.cy,0],dir:[.04,.06,1],d:900}),
  drawer:()=>({t:[CFG.flap.cx,CFG.flap.cy,CFG.frontZ+60],dir:[.3,.5,1],d:fitDist(460,460)}),
@@ -1423,6 +1477,8 @@ const VIEWS={
 let fly=null;
 function flyTo(name){
  const v=VIEWS[name]();const t=new THREE.Vector3(...v.t),p=v.p?new THREE.Vector3(...v.p):new THREE.Vector3(...v.dir).normalize().multiplyScalar(v.d).add(t);
+ const ch=$('#views3d'),H=renderer.domElement.clientHeight;if(ch&&!ch.hidden&&H){const cover=Math.max(0,renderer.domElement.getBoundingClientRect().bottom-ch.getBoundingClientRect().top);
+  const sh=p.distanceTo(t)*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*2*(cover/2)/H;t.y-=sh;p.y-=sh}
  fly={t0:performance.now(),dur:700,fp:camera.position.clone(),ft:controls.target.clone(),tp:p,tt:t};
  document.querySelectorAll('#views3d button').forEach(b=>b.classList.toggle('on',b.dataset.view===name));
 }
@@ -1437,12 +1493,12 @@ function act(a,hitObj){
  if(a==='base'){baseOpen=!baseOpen;btoast(baseOpen?'하단 덮개를 열었어요. 먼지 필터와 배수 필터를 누를 수 있어요.':'하단 덮개를 닫았어요.');return}
  if(a==='lint'){if(!baseOpen){baseOpen=true;return}if(busy){btoast('동작 중에는 먼지 필터를 뺄 수 없어요.');return}bench('lint');btoast(S.lint?'먼지 필터를 끼웠어요.':'먼지 필터를 뺐어요.');return}
  if(a==='drain'){if(!baseOpen){baseOpen=true;return}if(!S.drainClog){btoast('배수 필터는 깨끗해요.');return}bench('cleandrain');return}
- if(a==='bezel'){if(wrap.classList.contains('noTouch')){flyTo('screen');btoast('화면을 조작하기 좋게 정면으로 옮겼어요.')}return}
+ if(a==='bezel'){if(wrap.classList.contains('noTouch')){flyTo('op2');btoast('화면을 조작하기 좋게 정면으로 옮겼어요.')}return}
  if(a==='drum'){if(S.door)openSheet(true);else flyTo('door')}
 }
 function openSheet(toKg){const s=$('#sheet');s.hidden=false;setDock();if(toKg){const k=s.querySelector('.kg');k&&k.scrollIntoView({block:'center'})}}
 function setDock(){
- const on={views:!$('#views3d').hidden,xray,sheet:!$('#sheet').hidden,hud:!$('#hud').hidden,spin:autoSpin};
+ const on={views:!$('#views3d').hidden,xray,sheet:!$('#sheet').hidden,deco:!$('#deco').hidden,hud:!$('#hud').hidden,spin:autoSpin};
  document.querySelectorAll('#dock3d [data-d],#dfloat [data-d]').forEach(b=>{b.classList.toggle('on',!!on[b.dataset.d]);b.setAttribute('aria-pressed',!!on[b.dataset.d])});
  document.querySelectorAll('#dock3d [data-m]').forEach(b=>{const o=b.dataset.m===mode;b.classList.toggle('on',o);b.setAttribute('aria-selected',o)});
 }
@@ -1451,7 +1507,8 @@ function dock(d){
  if(d==='views')$('#views3d').hidden=!$('#views3d').hidden;
  if(d==='xray')setXray(!xray);
  if(d==='spin'){autoSpin=!autoSpin;controls.autoRotate=autoSpin}
- if(d==='sheet'){const s=$('#sheet');s.hidden=!s.hidden;if(!s.hidden)renderBench()}
+ if(d==='sheet'){const s=$('#sheet');s.hidden=!s.hidden;if(!s.hidden){$('#deco').hidden=true;renderBench()}}
+ if(d==='deco'){const s=$('#deco');s.hidden=!s.hidden;if(!s.hidden){$('#sheet').hidden=true;renderDeco()}}
  if(d==='hud')$('#hud').hidden=!$('#hud').hidden;
  setDock();
 }
@@ -1470,7 +1527,6 @@ function setMode(m){
  $('#views3d').hidden=m!=='C';$('#dfloat').hidden=m!=='D';
  document.querySelectorAll('#views3d [data-view]').forEach(b=>b.hidden=!(b.dataset.in||'A').includes(m));
  autoSpin=m==='D';controls.autoRotate=autoSpin;controls.autoRotateSpeed=1.2;
- if(m==='C'&&innerWidth<700)$('#hud').hidden=true;
  setDock();
  requestAnimationFrame(()=>{resize();window.fit&&fit();if(MODE_VIEW[m])flyTo(MODE_VIEW[m])});
  window.__mode=m;
@@ -1480,7 +1536,7 @@ function resize(){const h=$('#v3d'),w=h.clientWidth,hh=h.clientHeight;if(!w||!hh
 /* ---------- 초기화 ---------- */
 function init(){
  try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'})}catch(e){fail('이 기기에서는 3D를 쓸 수 없어 2D 화면으로 보여드려요.');return}
- document.body.classList.add('in3d');
+ document.body.classList.add('in3d');DEV.classList.add('lcd');
  const host=$('#v3d');
  renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
  renderer.toneMapping=THREE.AgXToneMapping;renderer.toneMappingExposure=1;
@@ -1489,10 +1545,10 @@ function init(){
  scene=new THREE.Scene();
  const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),.04).texture;scene.environmentIntensity=.9;
  camera=new THREE.PerspectiveCamera(CFG.cam.fov,innerWidth/innerHeight,10,40000);
- const key=new THREE.DirectionalLight(0xffffff,2.1);key.position.set(-1100,3900,1700);key.target.position.set(0,500,0);key.castShadow=true;
+ const key=KEY=new THREE.DirectionalLight(0xffffff,2.1);key.position.set(-1100,3900,1700);key.target.position.set(0,500,0);key.castShadow=true;
  Object.assign(key.shadow.camera,{left:-2000,right:2000,top:2000,bottom:-2000,near:500,far:9000});key.shadow.mapSize.set(2048,2048);key.shadow.bias=-.0004;key.shadow.normalBias=1.5;key.shadow.radius=4;
  scene.add(key,key.target);
- const rim=new THREE.DirectionalLight(0xdde7ff,.8);rim.position.set(2200,1600,-2400);scene.add(rim);
+ const rim=RIM=new THREE.DirectionalLight(0xdde7ff,.8);rim.position.set(2200,1600,-2400);scene.add(rim);
 
  build();applyFinish(S.finish);
 
@@ -1518,8 +1574,8 @@ function init(){
  addEventListener('wm:change',e=>{if(e.detail&&e.detail.what==='doorDenied')shakeT=.5});
  addEventListener('resize',resize);
  addEventListener('wm:change',e=>{const w=e.detail&&e.detail.what;if(w==='error'&&mode==='C'&&S.cycle&&S.cycle.err){if(S.cycle.err==='5C'){baseOpen=true;flyTo('base')}else flyTo('back')}});
- if(innerWidth>=700)$('#hud').hidden=false;
- buildMotion();setMode('A');renderReadout();
+ buildMotion();setMode('A');initDeco();renderReadout();
+ window.__3d={THREE,camera,renderer,devObj,P,CFG,AU}; // 점검용
  requestAnimationFrame(t=>{last=t;requestAnimationFrame(frame)});
 }
 
@@ -1611,7 +1667,7 @@ function updateMotion(dt,now,vis,st,wDrum){
     let rel=(c.phi+Math.PI/2)*(wDrum>=0?1:-1);rel=((rel%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
     if(Math.abs(wDrum)<.4){c.mode='pile'}else if(rel>c.fallAt&&rel<Math.PI*1.6){c.mode='fall';const v=wDrum*RW;c.vx=-Math.sin(c.phi)*v;c.vy=Math.cos(c.phi)*v;c.spin=(Math.random()-.5)*9}}
    else{c.vy-=G*dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.rot+=c.spin*dt;const d=Math.hypot(c.x,c.y);
-    if(d>RW){c.x*=RW/d;c.y*=RW/d;c.phi=Math.atan2(c.y,c.x);c.fallAt=1.2+Math.random()*.9;c.mode=Math.abs(wDrum)>.4?'carry':'pile'}}
+    if(d>RW){const sp=Math.hypot(c.vx,c.vy);c.x*=RW/d;c.y*=RW/d;c.phi=Math.atan2(c.y,c.x);c.fallAt=1.2+Math.random()*.9;c.mode=Math.abs(wDrum)>.4?'carry':'pile';thud(Math.min(1,sp/2200),wet)}}
   }else{const [tx,ty]=pileXY(c.i);c.x+=(tx-c.x)*Math.min(1,dt*3);c.y+=(ty-c.y)*Math.min(1,dt*3);c.mode='pile'}
   c.me.position.set(c.x,c.y,c.z);c.me.rotation.z=c.mode==='fall'?c.rot:Math.atan2(c.y,c.x)+Math.PI/2;
   c.m.color.copy(c.base).multiplyScalar(wet?.6:1);c.m.roughness=wet?.55:.92;
@@ -1622,6 +1678,140 @@ function updateMotion(dt,now,vis,st,wDrum){
  // 오류 위치 강조: 4C 급수(뒷면 밸브), 5C 배수(하단 배수 필터)
  const err=cy&&!cy.done&&cy.err,pulse=.5+.4*Math.sin(now/170);
  M.inlet.emissiveIntensity=err==='4C'?pulse:0;M.drain.emissiveIntensity=(S.drainClog||err==='5C')?pulse*.9:0;
+}
+
+/* ---------- 소리: Web Audio로 합성 (파일 없이) ----------
+   모터(인버터 DD 모터 윙), 드럼 웅웅, 고속 바람, 급수 쏴아, 물 출렁임, 배수 펌프·꾸르륵, 건조 팬·컴프레서,
+   세탁물 떨어지는 '툭', 문 열고 닫기, 잠금 '딸깍' */
+const AU={vol:.6};let prevW=0,thudT=0,prevDoorS=false,prevLock=false;
+function audioStart(){
+ if(AU.ctx){if(AU.ctx.state!=='running')AU.ctx.resume();return}
+ const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;const C=new AC();AU.ctx=C;
+ const out=C.createGain();out.gain.value=AU.vol;const comp=C.createDynamicsCompressor();out.connect(comp).connect(C.destination);AU.out=out;
+ const mk=(fn)=>{const b=C.createBuffer(1,C.sampleRate*2,C.sampleRate),d=b.getChannelData(0);fn(d);return b};
+ AU.white=mk(d=>{for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1});
+ AU.brown=mk(d=>{let l=0;for(let i=0;i<d.length;i++){l=(l+.02*(Math.random()*2-1))/1.02;d[i]=l*3.5}});
+ const loop=b=>{const x=C.createBufferSource();x.buffer=b;x.loop=true;x.start(0,Math.random()*1.5);return x};
+ const gain=()=>{const x=C.createGain();x.gain.value=0;x.connect(out);return x};
+ const filt=(t,f,q=1)=>{const x=C.createBiquadFilter();x.type=t;x.frequency.value=f;x.Q.value=q;return x};
+ const osc=(t,f)=>{const o=C.createOscillator();o.type=t;o.frequency.value=f;o.start();return o};
+ AU.gM=gain();AU.m1=osc('sawtooth',60);AU.m2=osc('triangle',120);AU.mf=filt('lowpass',400,5);AU.m1.connect(AU.mf);AU.m2.connect(AU.mf);AU.mf.connect(AU.gM);
+ AU.gR=gain();loop(AU.brown).connect(filt('lowpass',170,.7)).connect(AU.gR);
+ AU.gW=gain();loop(AU.white).connect(filt('bandpass',2400,.45)).connect(AU.gW);
+ AU.gF=gain();loop(AU.white).connect(filt('bandpass',1100,.7)).connect(AU.gF);
+ AU.gS=gain();loop(AU.brown).connect(filt('bandpass',420,1.3)).connect(AU.gS);
+ AU.gP=gain();const pf=filt('lowpass',380,1);osc('sine',98).connect(pf);osc('square',196).connect(pf);pf.connect(AU.gP);
+ AU.gG=gain();loop(AU.white).connect(filt('bandpass',520,7)).connect(AU.gG);
+ AU.gD=gain();loop(AU.white).connect(filt('bandpass',1700,.5)).connect(AU.gD);
+ AU.gC=gain();osc('sine',120).connect(AU.gC);
+}
+function burst(buf,type,f,amp,dur){const C=AU.ctx;if(!C||AU.vol<=0)return;const s=C.createBufferSource(),fl=C.createBiquadFilter(),g=C.createGain(),t=C.currentTime;
+ s.buffer=buf;fl.type=type;fl.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(amp,t+.006);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+ s.connect(fl).connect(g).connect(AU.out);s.start(t,Math.random()*1.5);s.stop(t+dur+.05)}
+function thud(k,wet){const n=performance.now();if(!AU.ctx||n-thudT<55)return;thudT=n;burst(AU.brown,'lowpass',wet?105:165,.25+.45*k,.16+(wet?.06:0))}
+function soundUpdate(dt,now,k){
+ const C=AU.ctx;if(!C)return;const t=C.currentTime,T=(g,v,tc=.15)=>g.gain.setTargetAtTime(v,t,tc);
+ const r=S.rpm,run=r>2,cy=S.cycle;
+ const f=40+r*.55;AU.m1.frequency.setTargetAtTime(f,t,.1);AU.m2.frequency.setTargetAtTime(f*2.03,t,.1);AU.mf.frequency.setTargetAtTime(260+r*1.7,t,.2);
+ T(AU.gM,run?.02+Math.min(r/1400,1)*.11:0);
+ const bell=Math.exp(-Math.pow((r-520)/240,2));
+ T(AU.gR,run?Math.min(.55,(.09+Math.min(S.kg,12)/25*.2)*(r<=300?1:.75)+bell*.12):0);
+ T(AU.gW,r>450?(r-450)/950*.17:0,.3);
+ const filling=S.water>prevW+2e-6&&k&&['fill','rinse','wash','soak'].includes(k);T(AU.gF,filling?.2:0,.2);
+ T(AU.gS,S.water>.05&&run&&r<150?(.1+.12*Math.abs(Math.sin(now/380)))*Math.min(1,S.water*2):0,.08);
+ const draining=S.water<prevW-2e-6||k==='drain';T(AU.gP,draining?.05:0,.25);T(AU.gG,draining&&S.water>.02?.05+.09*Math.random():0,.05);
+ T(AU.gD,k==='dry'||k==='cool'?.06:0,.4);T(AU.gC,k==='dry'&&!(cy&&CO[cy.sel.id]&&CO[cy.sel.id].noHeat)?.045:0,.5);
+ prevW=S.water;
+ if(S.door!==prevDoorS){burst(AU.brown,'lowpass',S.door?320:180,S.door?.35:.6,S.door?.12:.2);prevDoorS=S.door}
+ const lk=!S.door&&!!(window.doorBlock&&doorBlock());if(lk!==prevLock){burst(AU.white,'highpass',2600,.22,.035);prevLock=lk}
+}
+
+/* ---------- 파트별 소재·색상 ---------- */
+const MATS={
+ hair:{name:'헤어라인 금속',metalness:.88,roughness:.42,anis:.75,brush:1},
+ mmetal:{name:'무광 금속',metalness:.85,roughness:.55},
+ gmetal:{name:'유광 금속',metalness:1,roughness:.14},
+ mpaint:{name:'무광 도장',metalness:.05,roughness:.68},
+ gpaint:{name:'유광 도장',metalness:.05,roughness:.3,cc:1,ccr:.05},
+ pearl:{name:'펄 도장',metalness:.25,roughness:.35,cc:.8,ccr:.1,irid:.7},
+ glass:{name:'글라스',metalness:0,roughness:.06,cc:.8,ccr:.03},
+ plastic:{name:'플라스틱',metalness:0,roughness:.5},
+ rubber:{name:'고무',metalness:0,roughness:.9}
+};
+const COLS=[['#B5B8BA','실버'],['#5E6266','다크스틸'],['#BDB6AA','그레이지'],['#2B2D30','블랙'],['#E8E6E1','화이트'],['#D6CBB8','새틴 베이지'],['#2E3A52','네이비'],['#9AAA97','세이지'],['#D9826B','코랄'],['#C9B48A','샴페인 골드'],['#8B9196','라이트 그레이'],['#020203','글라스 블랙']];
+const PARTS={
+ front:{name:'전면 패널',mats:()=>[M.frontA,M.frontB,M.frontC]},
+ side:{name:'옆판',mats:()=>[M.side]},
+ top:{name:'상판·뒷판',mats:()=>[M.dark]},
+ ring:{name:'도어 유리 링',mats:()=>[M.glass]},
+ frame:{name:'도어 프레임',mats:()=>[M.frame]},
+ gasket:{name:'개스킷',mats:()=>[M.rubber]},
+ drum:{name:'드럼',mats:()=>[M.drumIn,M.back,M.steel,M.spider],keepMaps:1},
+ drawer:{name:'세제함',mats:()=>[M.tray]},
+ hinge:{name:'힌지·필터',mats:()=>[M.hinge,M.plastic]}
+};
+const DEF={};let curPart='front';const partSt={};
+function snapDefaults(){for(const id in PARTS)DEF[id]=PARTS[id].mats().map(m=>({color:m.color.getHex(),metalness:m.metalness,roughness:m.roughness,cc:m.clearcoat||0,ccr:m.clearcoatRoughness||0,irid:m.iridescence||0,anis:m.anisotropy||0,rm:m.roughnessMap,bm:m.bumpMap}))}
+function applyPart(id,col,mat){
+ const p=PARTS[id],k=mat&&MATS[mat];
+ for(const m of p.mats()){
+  if(col)m.color.set(col);
+  if(k){m.metalness=k.metalness;m.roughness=k.roughness;m.clearcoat=k.cc||0;m.clearcoatRoughness=k.ccr??.3;m.iridescence=k.irid||0;m.anisotropy=k.anis||0;
+   if(!p.keepMaps){const t=m===M.frontA?brushA:m===M.frontB?brushB:null;m.roughnessMap=k.brush&&t?t:null;m.bumpMap=k.brush&&t?t:null}}
+  m.needsUpdate=true}
+ partSt[id]={col:col||(partSt[id]&&partSt[id].col),mat:mat||(partSt[id]&&partSt[id].mat)};
+ if(id==='front')lastFinish=S.finish; // 기존 마감 선택이 바로 덮어쓰지 않게
+}
+function resetPart(id){PARTS[id].mats().forEach((m,i)=>{const d=DEF[id][i];m.color.setHex(d.color);m.metalness=d.metalness;m.roughness=d.roughness;m.clearcoat=d.cc;m.clearcoatRoughness=d.ccr;m.iridescence=d.irid;m.anisotropy=d.anis;m.roughnessMap=d.rm;m.bumpMap=d.bm;m.needsUpdate=true});delete partSt[id];if(id==='front')applyFinish(S.finish)}
+
+/* ---------- 환경 조명 ---------- */
+const LIGHTS={
+ studio:{name:'스튜디오',bg:'radial-gradient(120% 90% at 50% 28%,#f4f5f6 0%,#dfe2e5 52%,#c2c7cc 100%)',env:.9,exp:1,key:[0xffffff,2.1,[-1100,3900,1700]],rim:[0xdde7ff,.8],sh:.08},
+ living:{name:'따뜻한 거실',bg:'radial-gradient(120% 90% at 40% 25%,#f6ecdf 0%,#e3d3bf 55%,#bfa98f 100%)',env:.7,exp:1.02,key:[0xffd3a0,2.4,[1600,3000,1900]],rim:[0xffe2bd,.5],sh:.14},
+ day:{name:'맑은 낮',bg:'linear-gradient(180deg,#e6f0fb 0%,#f6f8fb 55%,#dce2e7 100%)',env:1.15,exp:1.05,key:[0xfff6ea,3,[-2600,3400,900]],rim:[0xcfe3ff,1],sh:.16},
+ laundry:{name:'다용도실',bg:'linear-gradient(180deg,#e1e8e4 0%,#cdd7d2 60%,#a9b4af 100%)',env:.85,exp:.98,key:[0xf0fff7,1.9,[0,4200,600]],rim:[0xe6fff4,.4],sh:.12},
+ night:{name:'밤 조명',bg:'radial-gradient(90% 70% at 50% 35%,#3a352f 0%,#1d1b19 60%,#0d0c0b 100%)',env:.22,exp:.95,key:[0xffc98a,1.7,[900,2600,2100]],rim:[0x8fa8ff,.35],sh:.25},
+ showroom:{name:'쇼룸',bg:'radial-gradient(70% 60% at 50% 40%,#3b4148 0%,#1b1e22 70%,#0b0c0e 100%)',env:.45,exp:1.05,key:[0xffffff,3.2,[-700,4200,1400]],rim:[0xbcd4ff,2.2],sh:.3}
+};
+let curLight='studio';
+function applyLight(id){const L=LIGHTS[id];curLight=id;$('#v3d').style.background=L.bg;scene.environmentIntensity=L.env;renderer.toneMappingExposure=L.exp;
+ KEY.color.setHex(L.key[0]);KEY.intensity=L.key[1];KEY.position.set(...L.key[2]);RIM.color.setHex(L.rim[0]);RIM.intensity=L.rim[1];FLOOR.opacity=L.sh;renderDeco()}
+
+/* ---------- 꾸미기 패널 ---------- */
+let decoTab='snd';
+function chip(attr,val,label,on,extra=''){return `<button ${attr}="${val}" class="${on?'on':''}" aria-pressed="${!!on}" ${extra}>${label}</button>`}
+function renderDeco(){
+ const d=$('#deco');if(!d||d.hidden)return;
+ d.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===decoTab));
+ d.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==decoTab);
+ const vv={mach:Math.round(AU.vol*100),beep:S.vol,voice:S.voiceVol??S.vol};
+ d.querySelectorAll('[data-vol]').forEach(i=>{i.value=vv[i.dataset.vol];i.nextElementSibling.textContent=vv[i.dataset.vol]});
+ $('#litList').innerHTML=Object.entries(LIGHTS).map(([k,L])=>chip('data-lit',k,L.name,k===curLight)).join('');
+ const st=partSt[curPart]||{};
+ $('#partList').innerHTML=Object.entries(PARTS).map(([k,p])=>chip('data-part',k,p.name,k===curPart)).join('');
+ $('#matList').innerHTML=Object.entries(MATS).map(([k,m])=>chip('data-mat',k,m.name,k===st.mat)).join('');
+ $('#colList').innerHTML=COLS.map(([c,n])=>chip('data-col',c,'',st.col&&st.col.toLowerCase()===c.toLowerCase(),`style="background:${c}" aria-label="${n}" title="${n}"`)).join('');
+ const pm=PARTS[curPart].mats()[0];$('#colPick').value=st.col||('#'+pm.color.getHexString());
+}
+function initDeco(){
+ snapDefaults();
+ const d=$('#deco');
+ d.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.tab){decoTab=b.dataset.tab;renderDeco()}
+  else if(b.dataset.lit)applyLight(b.dataset.lit);
+  else if(b.dataset.part){curPart=b.dataset.part;renderDeco()}
+  else if(b.dataset.mat){applyPart(curPart,null,b.dataset.mat);renderDeco()}
+  else if(b.dataset.col){applyPart(curPart,b.dataset.col,null);renderDeco()}
+  else if(b.id==='partReset'){resetPart(curPart);renderDeco()}
+  else if(b.id==='allReset'){for(const id in PARTS)resetPart(id);renderDeco()}});
+ $('#colPick').addEventListener('input',e=>applyPart(curPart,e.target.value,null));
+ $('#colPick').addEventListener('change',()=>renderDeco());
+ d.addEventListener('input',e=>{const k=e.target.dataset.vol;if(!k)return;const v=+e.target.value;e.target.nextElementSibling.textContent=v;audioStart();
+  if(k==='mach'){AU.vol=v/100;if(AU.out)AU.out.gain.setTargetAtTime(AU.vol,AU.ctx.currentTime,.05)}
+  if(k==='beep'){S.vol=v;if(v>0&&S.set.sound!=='소리')S.set.sound='소리';beep(1400,.04,.05)}
+  if(k==='voice'){S.voiceVol=v}});
+ // 브라우저 정책상 소리는 사용자가 한 번 누른 뒤에 시작
+ document.addEventListener('pointerdown',audioStart,{capture:true,passive:true});
 }
 
 /* ---------- 매 프레임: S를 읽어 표현 ---------- */
@@ -1652,11 +1842,11 @@ function frame(now){
  P.detMain.scale.y=Math.max(.5,S.det.main.ml/S.det.main.cap*150);P.detSel.scale.y=Math.max(.5,S.det.sel.ml/S.det.sel.cap*150);
  baseA+=((baseOpen?1.2:0)-baseA)*Math.min(1,dt*5);P.base.rotation.x=baseA;
  lintZ+=((S.lint?0:260)-lintZ)*Math.min(1,dt*5);P.lint.position.z=CFG.frontZ-170+lintZ;P.lint.visible=baseA>.05||!S.lint;P.drainG.visible=baseA>.05;
- updateMotion(dt,now,vis,st,wDrum);
- // 화면: 정면에서 벗어나면 흐려지고, 35° 넘으면 터치 막음
+ updateMotion(dt,now,vis,st,wDrum);soundUpdate(dt,now,st&&st.k);
+ // 화면: 정면에서 벗어나면 흐려지고, 약 53° 넘으면 터치 막음
  if(DEV.dataset.host==='css3d'){
   _s.set(devObj.position.x,devObj.position.y,devObj.position.z);_c.subVectors(camera.position,_s).normalize();
-  const c=_c.z,op=Math.round(THREE.MathUtils.smoothstep(c,.0,.22)*100)/100,touch=c>.82;
+  const c=_c.z,op=Math.round(THREE.MathUtils.smoothstep(c,.0,.22)*100)/100,touch=c>.6;
   if(op!==cssOp){wrap.style.opacity=op;cssOp=op}
   if(touch!==cssTouch){wrap.classList.toggle('noTouch',!touch);cssTouch=touch}
  }
