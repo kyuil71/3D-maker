@@ -1226,7 +1226,7 @@ const CFG={
  base:{y0:30,y1:176},                      // 하단 덮개 146mm
  screen:{cx:0,cy:1028,pxmm:177.8/Math.hypot(1024,600),modW:196,modH:104}, // 화면은 가로 중앙, 모듈 196×104mm(실버 테두리+블랙 글라스)
  flap:{cx:228,cy:984,w:160,h:188},         // 오른쪽 위 세제함 덮개
- door:{cy:540,R:300,glassR:198,hole:245,seat:318,depth:47,hinge:'left',maxDeg:150}, // 힌지 왼쪽. 드럼 세탁기 도어는 보통 130~160° 열림 → 150°
+ door:{cy:540,R:300,glassR:198,hole:245,seat:302,recess:22,depth:47,hinge:'left',maxDeg:150}, // 힌지 왼쪽. 드럼 세탁기 도어는 보통 130~160° 열림 → 150°
  drum:{R:292,depth:520,front:348},
  cam:{fov:35,min:150,max:6000}
 };
@@ -1346,7 +1346,7 @@ function build(){
 
  // 전면 패널: 도어 구멍 + 세제함 덮개 구멍
  const F=CFG.flap,D=CFG.door,sh=rrPath(new THREE.Shape(),-half,CFG.slabY0,W,CFG.H-CFG.slabY0,10);
- const h1=new THREE.Path();h1.absarc(0,D.cy,D.hole,0,Math.PI*2,true);sh.holes.push(h1);
+ const h1=new THREE.Path();h1.absarc(0,D.cy,D.seat,0,Math.PI*2,true);sh.holes.push(h1);
  sh.holes.push(rrPath(new THREE.Path(),F.cx-F.w/2-3,F.cy-F.h/2-3,F.w+6,F.h+6,8));
  const slab=new THREE.ExtrudeGeometry(sh,{depth:panelT-2,bevelEnabled:true,bevelThickness:1,bevelSize:1,bevelSegments:2,curveSegments:96});
  mesh(slab,M.frontA,{z:frontZ-panelT+1});
@@ -1383,18 +1383,26 @@ function build(){
  mesh(dg,M.drain,{parent:P.drainG,x:190,y:100,z:frontZ-50,act:'drain'});
  mesh(new THREE.BoxGeometry(56,10,10),M.drain,{parent:P.drainG,x:190,y:100,z:frontZ-34,act:'drain'});
 
- // 패널은 도어 주변까지 평평. 잠금 구멍·센서·힌지는 문이 열릴 때만 보임
- const SZ=frontZ;
- const hs=D.hinge==='left'?-1:1;P.hs=hs;const hx=hs*(D.R+22),hz=frontZ+42; // 힌지 축을 도어 바깥·패널 앞쪽으로 빼서 150° 열어도 도어가 본체에 파고들지 않게
+ // 도어 크기만큼 패인 원형 홈(닫으면 도어에 가려 안 보임). 홈 바닥에 개스킷·힌지 플레이트·잠금 구멍
+ const RD=D.recess,SZ=frontZ-RD;
+ mesh(lathe([[D.seat,1],[D.seat,-3],[D.seat-3,-RD+3],[D.seat-8,-RD],[D.hole+4,-RD],[D.hole,-RD+2]]),M.frontC,{y:D.cy,z:frontZ,shadow:false});
+ const hs=D.hinge==='left'?-1:1;P.hs=hs;const hx=hs*(D.R+22),hz=frontZ+42; // 회전축은 도어 바깥·패널 앞쪽(150° 열어도 본체에 안 파고듦)
  P.hinge=new THREE.Group();P.root.add(P.hinge);const hp={parent:P.hinge};
- mesh(new RoundedBoxGeometry(14,26,2,1,1),M.dark,{...hp,x:-hs*282,y:D.cy,z:SZ+.6,shadow:false}); // 잠금 구멍
- for(const dy of[48,34])mesh(new THREE.CylinderGeometry(3,3,1.2,12).rotateX(Math.PI/2),M.dark,{...hp,x:-hs*282,y:D.cy+dy,z:SZ+.6,shadow:false});
- mesh(new RoundedBoxGeometry(38,240,10,2,12),M.hinge,{...hp,x:hs*282,y:D.cy,z:SZ+5});
- for(const dy of[-62,62]){mesh(new RoundedBoxGeometry(46,30,44,2,6),M.hinge,{...hp,x:hs*(D.R+4),y:D.cy+dy,z:SZ+22});mesh(new THREE.CylinderGeometry(8,8,40,16),M.hinge,{...hp,x:hx,y:D.cy+dy,z:hz})}
+ mesh(new RoundedBoxGeometry(14,26,4,1,1),M.dark,{...hp,x:-hs*275,y:D.cy,z:SZ+1,shadow:false}); // 잠금 구멍
+ for(const dy of[48,34])mesh(new THREE.CylinderGeometry(3,3,2,12).rotateX(Math.PI/2),M.dark,{...hp,x:-hs*275,y:D.cy+dy,z:SZ+1,shadow:false});
+ // 힌지 플레이트(밝은 회색, 위아래 나사) — 사진처럼 홈 안쪽 개스킷 왼쪽에 고정
+ const PX=hs*274;
+ mesh(new RoundedBoxGeometry(44,270,10,3,16),M.hinge,{...hp,x:PX,y:D.cy,z:SZ+5});
+ for(const dy of[-112,112])mesh(new THREE.CylinderGeometry(6,6,4,16).rotateX(Math.PI/2),M.chrome,{...hp,x:PX,y:D.cy+dy,z:SZ+11,shadow:false});
+ // 힌지 암(ㄱ자 알루미늄 바): 플레이트에서 앞으로 나와 회전축으로
+ for(const dy of[-62,62]){
+  mesh(new RoundedBoxGeometry(18,24,hz-(SZ+10)+12,2,5),M.hinge,{...hp,x:PX,y:D.cy+dy,z:(SZ+10+hz)/2});
+  mesh(new RoundedBoxGeometry(Math.abs(hx-PX)+12,24,14,2,5),M.hinge,{...hp,x:(PX+hx)/2,y:D.cy+dy,z:hz});
+  mesh(new THREE.CylinderGeometry(11,11,32,20),M.hinge,{...hp,x:hx,y:D.cy+dy,z:hz})}
 
- // 개스킷(밝은 회색 고무) + 노란 노즐
- mesh(lathe([[D.hole,0],[238,-6],[235,-20],[243,-40],[266,-55],[289,-62]]),M.rubber,{y:D.cy,z:SZ-1,shadow:false});
- {const a=Math.PI*.78,nz=mesh(new RoundedBoxGeometry(22,30,24,2,6),M.yellow,{x:Math.cos(a)*232,y:D.cy+Math.sin(a)*232,z:SZ-28,shadow:false});nz.rotation.z=a+Math.PI/2}
+ // 개스킷(밝은 회색 고무, 홈 바닥에서 드럼 앞까지) + 노란 노즐
+ mesh(lathe([[D.hole,0],[238,-5],[235,-14],[243,-26],[266,-34],[289,-38]]),M.rubber,{y:D.cy,z:SZ+1,shadow:false});
+ {const a=Math.PI*.78,nz=mesh(new RoundedBoxGeometry(22,30,24,2,6),M.yellow,{x:Math.cos(a)*232,y:D.cy+Math.sin(a)*232,z:SZ-16,shadow:false});nz.rotation.z=a+Math.PI/2}
 
  // 드럼: 쿠션 셀 타공 벽 + 동심원 타공 뒷판 + Y자 3갈래 리브(리프터로 이어짐)
  const R=CFG.drum.R,dz=CFG.drum.front-CFG.drum.depth/2,bz=CFG.drum.front-CFG.drum.depth;
@@ -1426,7 +1434,13 @@ function build(){
  mesh(lathe([[222,1],[232,-6],[256,-6],[262,1]]),M.frame,{...dd,x:ox,z:oz});
  mesh(lathe([[214,4],[220,0],[220,-6],[213,-30],[201,-78],[174,-120],[122,-150],[0,-160]],72),M.window,{...dd,x:ox,z:oz,shadow:false});
  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+.3;mesh(new THREE.CylinderGeometry(5,5,3,12).rotateX(Math.PI/2),M.chrome,{...dd,x:ox+Math.cos(a)*276,y:Math.sin(a)*276,z:oz+3,shadow:false})}
- P.hingeD=[-62,62].map(dy=>mesh(new RoundedBoxGeometry(40,26,30,2,5),M.hinge,{...dd,x:-hs*18,y:dy,z:-22}));
+ M.hblock=new THREE.MeshPhysicalMaterial({color:0x3c4044,roughness:.55,metalness:.1});
+ const BX=ox+hs*(D.R-48); // 도어 뒷면, 힌지 쪽 가장자리 안쪽
+ mesh(new RoundedBoxGeometry(56,190,12,2,4),M.hblock,{...dd,x:BX,z:oz-6});
+ for(const dy of[-80,-62,-44,44,62,80])mesh(new THREE.BoxGeometry(30,6,3),M.dark,{...dd,x:BX,y:dy,z:oz-12.6,shadow:false}); // 블록의 슬롯
+ P.hingeD=[];for(const dy of[-62,62]){
+  P.hingeD.push(mesh(new RoundedBoxGeometry(Math.abs(BX)+10,22,12,2,5),M.hinge,{...dd,x:BX/2,y:dy,z:0}));
+  P.hingeD.push(mesh(new RoundedBoxGeometry(16,22,Math.abs(oz)+6,2,5),M.hinge,{...dd,x:BX,y:dy,z:oz/2-3}))}
  P.hingeD.push(mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10})); // 걸쇠(문 끝쪽) — 닫히면 숨김
  mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+DD+.5,shadow:false});
  P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+DD,shadow:false});
