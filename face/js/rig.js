@@ -490,6 +490,17 @@ export function buildRig(srcGeom, LM, options = {}) {
     SKW[i * 4] = h; SKW[i * 4 + 1] = nk; SKW[i * 4 + 2] = r;
   }
 
+  // skin mask (1 = skin, 0 = hair) so the skin-tone grade never touches the blonde hair
+  const SKN = new Float32Array(NT);
+  for (let i = 0; i < NT; i++) {
+    const q = PARENT[i] >= 0 ? PARENT[i] : i;
+    const x = POS[q * 3], y = POS[q * 3 + 1], z = POS[q * 3 + 2], ax = Math.abs(x);
+    const front = 0.67 - 0.3 * Math.min(1, ax / 0.42) ** 2;          // forehead → temples
+    const t1 = ss(0.12, -0.04, z), t2 = ss(-0.14, -0.3, z);
+    const side = ax > 0.3 ? 0.33 : 0.5;                                  // above the ears
+    const line = (front * (1 - t1) + side * t1) * (1 - t2) + (-0.17) * t2; // nape at the back
+    SKN[i] = 1 - ss(line - 0.012, line + 0.03, y);
+  }
   function makeGeom(tris, withMorph) {
     const used = new Int32Array(NT).fill(-1); const list = [];
     for (const v of tris) if (used[v] < 0) { used[v] = list.length; list.push(v); }
@@ -499,6 +510,7 @@ export function buildRig(srcGeom, LM, options = {}) {
     g.setAttribute('normal', new THREE.BufferAttribute(pick(NRM, 3), 3));
     g.setAttribute('uv', new THREE.BufferAttribute(pick(UV, 2), 2));
     g.setAttribute('color', new THREE.BufferAttribute(pick(COL, 3), 3));
+    g.setAttribute('skinMask', new THREE.BufferAttribute(pick(SKN, 1), 1));
     g.setAttribute('skinIndex', new THREE.BufferAttribute(pick(SKI, 4), 4));
     g.setAttribute('skinWeight', new THREE.BufferAttribute(pick(SKW, 4), 4));
     const ind = new Uint32Array(tris.length); for (let k = 0; k < tris.length; k++) ind[k] = used[tris[k]];

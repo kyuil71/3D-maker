@@ -79,7 +79,7 @@ const fill = new THREE.DirectionalLight(0xffffff, 0.5), rim = new THREE.Directio
 const hemi = new THREE.HemisphereLight(0xffffff, 0x443322, 0.25);
 scene.add(key, fill, rim, rim2, hemi);
 const LIGHTS = {
-  studio: { env: 0.4, key: [0xfff0e2, 1.9, [1.4, 1.6, 2.6]], fill: [0xdfe8ff, 0.45, [-2.2, 0.4, 1.6]], rim: [0xffffff, 1.3, [-1.2, 1.8, -2.4]], rim2: [0xffe6cc, 0.55, [1.8, 0.6, -2]], hemi: [0xffffff, 0x443322, 0.2], exp: 1.05 },
+  studio: { env: 0.35, key: [0xfff0e2, 1.9, [1.4, 1.6, 2.6]], fill: [0xdfe8ff, 0.45, [-2.2, 0.4, 1.6]], rim: [0xffffff, 1.3, [-1.2, 1.8, -2.4]], rim2: [0xffe6cc, 0.55, [1.8, 0.6, -2]], hemi: [0xffffff, 0x443322, 0.2], exp: 1.05 },
   beauty: { env: 0.7, key: [0xfff4ea, 2.1, [0, 2.4, 2.6]], fill: [0xffe9de, 0.8, [0, -1.6, 2]], rim: [0xffffff, 1.0, [0, 1.6, -2.5]], rim2: [0xfff0e0, 0.4, [-2, 0.5, -1]], hemi: [0xffffff, 0x665544, 0.3], exp: 1.12 },
   rembrandt: { env: 0.22, key: [0xffe2c4, 3.1, [-2.1, 1.8, 1.4]], fill: [0x9fb6ff, 0.16, [2.4, 0.2, 1.2]], rim: [0xffffff, 0.6, [1.5, 1.5, -2]], rim2: [0xffffff, 0, [0, 0, -1]], hemi: [0xffffff, 0x221a14, 0.08], exp: 1.1 },
   rim: { env: 0.15, key: [0xffffff, 0.75, [0.5, 1.2, 3]], fill: [0xffffff, 0, [0, 0, 1]], rim: [0x7fb0ff, 3.4, [-2.4, 1.0, -1.5]], rim2: [0xffa060, 3.2, [2.4, 1.0, -1.5]], hemi: [0xffffff, 0x000000, 0.05], exp: 1.2 },
@@ -94,26 +94,39 @@ function setLighting(name) {
 setLighting('studio');
 
 // ---------------------------------------------------------------- loading
-// Skin: dielectric (metalness 0) — the scan's metallic map is ~0 anyway and only made the skin look like metal.
-const skinMat = new THREE.MeshPhysicalMaterial({ roughness: 1.0, metalness: 0, vertexColors: true, sheen: 0.18, sheenColor: new THREE.Color(1.0, 0.86, 0.84), sheenRoughness: 0.8, specularIntensity: 0.32, envMapIntensity: 0.7 });
-const skinTone = { value: 0.7 };   // 0 = original texture colour, 1 = very fair
+// Skin: dielectric (metalness 0). Gloss and tone are adjustable (UI sliders); the grade is masked to skin only.
+const skinMat = new THREE.MeshPhysicalMaterial({ roughness: 1.0, metalness: 0, vertexColors: true, ior: 1.4, specularIntensity: 0.3, envMapIntensity: 0.55 });
+const skinTone = { value: 0.75 }, skinGloss = { value: 0.3 }, skinDebug = { value: 0 };
+// fair Caucasian reference: average scan skin → target (sRGB 241,212,197), both in linear
+const SKIN_SRC = new THREE.Color().setRGB(180 / 255, 141 / 255, 115 / 255, THREE.SRGBColorSpace);
+const SKIN_DST = new THREE.Color().setRGB(241 / 255, 212 / 255, 197 / 255, THREE.SRGBColorSpace);
+const skinRatio = { value: new THREE.Vector3(SKIN_DST.r / SKIN_SRC.r, SKIN_DST.g / SKIN_SRC.g, SKIN_DST.b / SKIN_SRC.b) };
+function setGloss(g) {   // 0 = matte/powdered … 1 = oily/wet. Real skin ≈ 0.25–0.4
+  skinGloss.value = g;
+  skinMat.roughness = 1.25 - 0.75 * g;        // multiplies the scan roughness map (~0.62) → 0.78 … 0.31
+  skinMat.specularIntensity = 0.12 + 0.55 * g;
+  skinMat.envMapIntensity = 0.25 + 0.6 * g;
+}
+setGloss(0.3);
 skinMat.onBeforeCompile = sh => {
-  sh.uniforms.uSkinTone = skinTone;
-  sh.fragmentShader = 'uniform float uSkinTone;\n' + sh.fragmentShader
+  Object.assign(sh.uniforms, { uSkinTone: skinTone, uSkinRatio: skinRatio, uSkinDebug: skinDebug });
+  sh.vertexShader = 'attribute float skinMask;\nvarying float vSkin;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vSkin = skinMask;');
+  sh.fragmentShader = 'uniform float uSkinTone; uniform vec3 uSkinRatio; uniform float uSkinDebug; varying float vSkin;\n' + sh.fragmentShader
     .replace('#include <map_fragment>', `#include <map_fragment>
       {
-        // fair skin-tone grade on the albedo (linear space): lighten, desaturate the orange, add a cool-pink undertone.
+        // re-tint the scan albedo toward fair Caucasian skin: per-channel gain that maps the average
+        // scan skin colour onto the target, so freckles / pores / make-up contrast are preserved.
         vec3 c = diffuseColor.rgb;
+        vec3 t = min(c * uSkinRatio, vec3(1.0));
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-        float sat = (max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b))) / max(1e-4, max(c.r, max(c.g, c.b)));
-        float m = smoothstep(0.035, 0.11, l) * (1.0 - smoothstep(0.84, 0.94, sat));     // skin-like pixels (not dark hair strands / lashes)
-        vec3 t = mix(c, vec3(l), 0.42 * uSkinTone);
-        t *= mix(vec3(1.0), vec3(1.05, 0.97, 0.99), uSkinTone);
-        t = pow(max(t, 0.0), vec3(1.0 - 0.32 * uSkinTone)) * (1.0 + 0.12 * uSkinTone);
-        diffuseColor.rgb = mix(c, min(t, vec3(1.0)), m);
+        float m = vSkin * smoothstep(0.02, 0.08, l) * uSkinTone;   // keep lashes / brows-dark strands
+        diffuseColor.rgb = mix(c, t, m);
+        if (uSkinDebug > 0.5) diffuseColor.rgb = vec3(vSkin);
       }`)
-    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-      totalEmissiveRadiance += diffuseColor.rgb * vec3(0.9, 0.42, 0.36) * 0.035;   // cheap subsurface warmth`);
+    .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+      // soft subsurface look: lift shadowed diffuse with a red-shifted wrap term (light bleeding through skin)
+      reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.32, 0.12, 0.08) * 0.35 * vSkin;
+      reflectedLight.directDiffuse *= mix(vec3(1.0), vec3(1.03, 0.98, 0.96), vSkin);`);
 };
 const texLoader = new THREE.TextureLoader();
 let rig = null, srcGeom = null;
@@ -130,7 +143,7 @@ async function setTextureLevel(level, onProg) {
   const files = [[`assets/tex/basecolor_${level}k.webp`, true], [`assets/tex/normal_${sub}k.webp`, false], [`assets/tex/orm_${sub}k.webp`, false]];
   let n = 0; const tex = await Promise.all(files.map(([f, s]) => loadTex(f, s).then(t => { onProg && onProg(++n / files.length); return t; })));
   const old = [skinMat.map, skinMat.normalMap, skinMat.roughnessMap];
-  skinMat.map = tex[0]; skinMat.normalMap = tex[1]; skinMat.normalScale.set(1, 1); skinMat.roughnessMap = tex[2]; skinMat.metalnessMap = null;
+  skinMat.map = tex[0]; skinMat.normalMap = tex[1]; skinMat.normalScale.set(0.7, 0.7); skinMat.roughnessMap = tex[2]; skinMat.metalnessMap = null;
   skinMat.needsUpdate = true;
   old.forEach(t => t && t !== skinMat.roughnessMap && t.dispose());
   state.texLevel = level; $('selTex').value = level;
@@ -487,8 +500,11 @@ function buildUI() {
     else selectExpr(currentExpr);
   };
   $('rngInt').oninput = e => { animator.intensity = e.target.value / 100; $('oInt').textContent = e.target.value + '%'; };
-  $('rngSkin').oninput = e => { skinTone.value = e.target.value / 100; $('oSkin').textContent = e.target.value + '%'; store.set(LS.settings, { ...store.get(LS.settings, {}), skin: +e.target.value }); };
-  { const sv = store.get(LS.settings, {}).skin; if (sv !== undefined) { $('rngSkin').value = sv; skinTone.value = sv / 100; $('oSkin').textContent = sv + '%'; } }
+  $('rngSkin').oninput = e => { skinTone.value = e.target.value / 100; $('oSkin').textContent = e.target.value + '%'; store.set(LS.settings, { ...store.get(LS.settings, {}), skin2: +e.target.value }); };
+  $('rngGloss').oninput = e => { setGloss(e.target.value / 100); $('oGloss').textContent = e.target.value + '%'; store.set(LS.settings, { ...store.get(LS.settings, {}), gloss: +e.target.value }); };
+  { const st = store.get(LS.settings, {});
+    if (st.skin2 !== undefined) { $('rngSkin').value = st.skin2; skinTone.value = st.skin2 / 100; $('oSkin').textContent = st.skin2 + '%'; }
+    if (st.gloss !== undefined) { $('rngGloss').value = st.gloss; setGloss(st.gloss / 100); $('oGloss').textContent = st.gloss + '%'; } }
   $('rngTrans').oninput = e => { animator.transition = e.target.value / 100; $('oTrans').textContent = (e.target.value / 100).toFixed(2) + 's'; };
   for (const [id, k] of [['chkBlink', 'blink'], ['chkHead', 'head'], ['chkBreath', 'breath'], ['chkMicro', 'micro']]) $(id).onchange = e => animator.idle[k] = e.target.checked;
   $('selGaze').onchange = e => animator.idle.gaze = e.target.value;
@@ -589,4 +605,4 @@ loop();
 init().catch(e => fatal(e.message || String(e)));
 
 // debug / automation hooks
-window.studio = { skinTone, advance(sec, fps = 60) { for (let i = 0; i < sec * fps; i++) { const tr = driver.state === 'speaking' ? driver.update(1 / fps) : null; animator.viseme = tr ? tr.evaluate(tr.time, visOut) : animator.viseme; animator.update(1 / fps, rig, camera); } renderer.render(scene, camera); }, get rig() { return rig; }, animator, driver, scene, camera, controls, renderer, goView, setLighting, selectExpr, exportGLB, state, textToVisemes: null };
+window.studio = { skinTone, skinDebug, setGloss, advance(sec, fps = 60) { for (let i = 0; i < sec * fps; i++) { const tr = driver.state === 'speaking' ? driver.update(1 / fps) : null; animator.viseme = tr ? tr.evaluate(tr.time, visOut) : animator.viseme; animator.update(1 / fps, rig, camera); } renderer.render(scene, camera); }, get rig() { return rig; }, animator, driver, scene, camera, controls, renderer, goView, setLighting, selectExpr, exportGLB, state, textToVisemes: null };
