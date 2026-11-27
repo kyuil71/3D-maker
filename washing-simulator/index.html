@@ -1329,6 +1329,12 @@ function applyFinish(hex){
 /* ---------- 형상 도우미 ---------- */
 function rrPath(p,x,y,w,h,r){p.moveTo(x+r,y);p.lineTo(x+w-r,y);p.quadraticCurveTo(x+w,y,x+w,y+r);p.lineTo(x+w,y+h-r);p.quadraticCurveTo(x+w,y+h,x+w-r,y+h);p.lineTo(x+r,y+h);p.quadraticCurveTo(x,y+h,x,y+h-r);p.lineTo(x,y+r);p.quadraticCurveTo(x,y,x+r,y);return p}
 function mesh(geo,mat,{x=0,y=0,z=0,act=null,shadow=true,parent=null}={}){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=shadow;m.receiveShadow=true;if(act){m.userData.act=act;pick.push(m)}(parent||P.root).add(m);return m}
+function flatBar(pts,{w=16,t=22,mat,parent,y=0}){ // pts: [[x,z],...] 위에서 본 경로. 두께 t(세로), 폭 w. 꺾이는 곳은 원기둥으로 둥글게
+ const g=new THREE.Group();g.position.y=y;parent.add(g);
+ for(let i=0;i<pts.length-1;i++){const [x0,z0]=pts[i],[x1,z1]=pts[i+1],L=Math.hypot(x1-x0,z1-z0);
+  const m=new THREE.Mesh(new THREE.BoxGeometry(L,t,w),mat);m.position.set((x0+x1)/2,0,(z0+z1)/2);m.rotation.y=-Math.atan2(z1-z0,x1-x0);m.castShadow=true;g.add(m)}
+ for(const [x,z] of pts){const c=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,t,20),mat);c.position.set(x,0,z);c.castShadow=true;g.add(c)}
+ return g}
 function lathe(pts,seg=96){const g=new THREE.LatheGeometry(pts.map(([r,z])=>new THREE.Vector2(r,z)),seg);g.rotateX(Math.PI/2);return g}
 
 /* ---------- 본체 ---------- */
@@ -1390,15 +1396,16 @@ function build(){
  P.hinge=new THREE.Group();P.root.add(P.hinge);const hp={parent:P.hinge};
  mesh(new RoundedBoxGeometry(14,26,4,1,1),M.dark,{...hp,x:-hs*275,y:D.cy,z:SZ+1,shadow:false}); // 잠금 구멍
  for(const dy of[48,34])mesh(new THREE.CylinderGeometry(3,3,2,12).rotateX(Math.PI/2),M.dark,{...hp,x:-hs*275,y:D.cy+dy,z:SZ+1,shadow:false});
- // 힌지 플레이트(밝은 회색, 위아래 나사) — 사진처럼 홈 안쪽 개스킷 왼쪽에 고정
- const PX=hs*274;
- mesh(new RoundedBoxGeometry(44,270,10,3,16),M.hinge,{...hp,x:PX,y:D.cy,z:SZ+5});
- for(const dy of[-112,112])mesh(new THREE.CylinderGeometry(6,6,4,16).rotateX(Math.PI/2),M.chrome,{...hp,x:PX,y:D.cy+dy,z:SZ+11,shadow:false});
- // 힌지 암(ㄱ자 알루미늄 바): 플레이트에서 앞으로 나와 회전축으로
- for(const dy of[-62,62]){
-  mesh(new RoundedBoxGeometry(18,24,hz-(SZ+10)+12,2,5),M.hinge,{...hp,x:PX,y:D.cy+dy,z:(SZ+10+hz)/2});
-  mesh(new RoundedBoxGeometry(Math.abs(hx-PX)+12,24,14,2,5),M.hinge,{...hp,x:(PX+hx)/2,y:D.cy+dy,z:hz});
-  mesh(new THREE.CylinderGeometry(11,11,32,20),M.hinge,{...hp,x:hx,y:D.cy+dy,z:hz})}
+ // 힌지 플레이트: 밝은 회색, 위아래 나사 자리가 둥글게 넓은 뼈 모양 (사진 참고). 홈 안 개스킷 왼쪽
+ const PX=hs*272,PW=34,PH=250;
+ mesh(new RoundedBoxGeometry(PW,PH,12,3,10),M.hinge,{...hp,x:PX,y:D.cy,z:SZ+6});
+ for(const dy of[-PH/2+22,PH/2-22]){mesh(new THREE.CylinderGeometry(25,25,12,32).rotateX(Math.PI/2),M.hinge,{...hp,x:PX,y:D.cy+dy,z:SZ+6});
+  mesh(new THREE.CylinderGeometry(7,7,3,16).rotateX(Math.PI/2),M.chrome,{...hp,x:PX,y:D.cy+dy,z:SZ+13,shadow:false});
+  mesh(new THREE.CylinderGeometry(3,3,4,6).rotateX(Math.PI/2),M.dark,{...hp,x:PX,y:D.cy+dy,z:SZ+14,shadow:false})}
+ mesh(new RoundedBoxGeometry(PW-6,150,8,2,6),M.hinge,{...hp,x:PX,y:D.cy,z:SZ+14}); // 가운데 돋은 부분(암이 나오는 곳)
+ // 암: 플레이트 가운데서 앞으로 나와 바깥으로 둥글게 휘어 회전축까지 (사진의 휘어진 알루미늄 바)
+ P.armY=[-60,60];
+ for(const dy of P.armY)flatBar([[PX,SZ+14],[PX,hz-10],[hx,hz]],{w:18,t:24,mat:M.hinge,parent:P.hinge,y:D.cy+dy});
 
  // 개스킷(밝은 회색 고무, 홈 바닥에서 드럼 앞까지) + 노란 노즐
  mesh(lathe([[D.hole,0],[238,-5],[235,-14],[243,-26],[266,-34],[289,-38]]),M.rubber,{y:D.cy,z:SZ+1,shadow:false});
@@ -1434,13 +1441,15 @@ function build(){
  mesh(lathe([[222,1],[232,-6],[256,-6],[262,1]]),M.frame,{...dd,x:ox,z:oz});
  mesh(lathe([[214,4],[220,0],[220,-6],[213,-30],[201,-78],[174,-120],[122,-150],[0,-160]],72),M.window,{...dd,x:ox,z:oz,shadow:false});
  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+.3;mesh(new THREE.CylinderGeometry(5,5,3,12).rotateX(Math.PI/2),M.chrome,{...dd,x:ox+Math.cos(a)*276,y:Math.sin(a)*276,z:oz+3,shadow:false})}
- M.hblock=new THREE.MeshPhysicalMaterial({color:0x3c4044,roughness:.55,metalness:.1});
- const BX=ox+hs*(D.R-48); // 도어 뒷면, 힌지 쪽 가장자리 안쪽
- mesh(new RoundedBoxGeometry(56,190,12,2,4),M.hblock,{...dd,x:BX,z:oz-6});
- for(const dy of[-80,-62,-44,44,62,80])mesh(new THREE.BoxGeometry(30,6,3),M.dark,{...dd,x:BX,y:dy,z:oz-12.6,shadow:false}); // 블록의 슬롯
- P.hingeD=[];for(const dy of[-62,62]){
-  P.hingeD.push(mesh(new RoundedBoxGeometry(Math.abs(BX)+10,22,12,2,5),M.hinge,{...dd,x:BX/2,y:dy,z:0}));
-  P.hingeD.push(mesh(new RoundedBoxGeometry(16,22,Math.abs(oz)+6,2,5),M.hinge,{...dd,x:BX,y:dy,z:oz/2-3}))}
+ M.hblock=new THREE.MeshPhysicalMaterial({color:0x3a3e42,roughness:.6,metalness:.05});
+ const BW=70,BX=ox+hs*(D.R-BW/2-6),BZ=oz-8,bin=-hs; // 블록: 도어 뒷면 힌지 쪽 가장자리. bin=도어 중심 방향
+ mesh(new RoundedBoxGeometry(BW,230,14,2,4),M.hblock,{...dd,x:BX,z:BZ});
+ mesh(new RoundedBoxGeometry(BW-22,120,8,2,3),M.hblock,{...dd,x:BX+bin*6,z:BZ-10}); // 가운데 단 높은 부분
+ for(const [ux,dy] of [[-.2,-88],[.25,-30],[-.2,30],[.25,88]])mesh(new THREE.CylinderGeometry(5.5,5.5,4,16).rotateX(Math.PI/2),M.dark,{...dd,x:BX+bin*ux*BW,y:dy,z:BZ-15,shadow:false}); // 나사
+ for(const [ux,dy] of [[.22,-104],[-.15,-60],[.15,0],[-.15,60],[.22,104]])mesh(new THREE.BoxGeometry(14,14,4),M.dark,{...dd,x:BX+bin*ux*BW,y:dy,z:BZ-13,shadow:false}); // 네모 구멍
+ const edgeX=BX-bin*(BW/2); // 블록에서 회전축 쪽 옆면
+ P.hingeD=[];
+ for(const dy of P.armY){const g=flatBar([[0,0],[bin*16,BZ-4],[edgeX+bin*10,BZ-4]],{w:16,t:22,mat:M.hinge,parent:P.door,y:dy});P.hingeD.push(g)}
  P.hingeD.push(mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10})); // 걸쇠(문 끝쪽) — 닫히면 숨김
  mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+DD+.5,shadow:false});
  P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+DD,shadow:false});
