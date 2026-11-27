@@ -79,7 +79,7 @@ const fill = new THREE.DirectionalLight(0xffffff, 0.5), rim = new THREE.Directio
 const hemi = new THREE.HemisphereLight(0xffffff, 0x443322, 0.25);
 scene.add(key, fill, rim, rim2, hemi);
 const LIGHTS = {
-  studio: { env: 0.45, key: [0xfff0e2, 1.9, [1.4, 1.6, 2.6]], fill: [0xdfe8ff, 0.45, [-2.2, 0.4, 1.6]], rim: [0xffffff, 1.3, [-1.2, 1.8, -2.4]], rim2: [0xffe6cc, 0.55, [1.8, 0.6, -2]], hemi: [0xffffff, 0x443322, 0.2], exp: 1.05 },
+  studio: { env: 0.4, key: [0xfff0e2, 1.9, [1.4, 1.6, 2.6]], fill: [0xdfe8ff, 0.45, [-2.2, 0.4, 1.6]], rim: [0xffffff, 1.3, [-1.2, 1.8, -2.4]], rim2: [0xffe6cc, 0.55, [1.8, 0.6, -2]], hemi: [0xffffff, 0x443322, 0.2], exp: 1.05 },
   beauty: { env: 0.7, key: [0xfff4ea, 2.1, [0, 2.4, 2.6]], fill: [0xffe9de, 0.8, [0, -1.6, 2]], rim: [0xffffff, 1.0, [0, 1.6, -2.5]], rim2: [0xfff0e0, 0.4, [-2, 0.5, -1]], hemi: [0xffffff, 0x665544, 0.3], exp: 1.12 },
   rembrandt: { env: 0.22, key: [0xffe2c4, 3.1, [-2.1, 1.8, 1.4]], fill: [0x9fb6ff, 0.16, [2.4, 0.2, 1.2]], rim: [0xffffff, 0.6, [1.5, 1.5, -2]], rim2: [0xffffff, 0, [0, 0, -1]], hemi: [0xffffff, 0x221a14, 0.08], exp: 1.1 },
   rim: { env: 0.15, key: [0xffffff, 0.75, [0.5, 1.2, 3]], fill: [0xffffff, 0, [0, 0, 1]], rim: [0x7fb0ff, 3.4, [-2.4, 1.0, -1.5]], rim2: [0xffa060, 3.2, [2.4, 1.0, -1.5]], hemi: [0xffffff, 0x000000, 0.05], exp: 1.2 },
@@ -94,7 +94,27 @@ function setLighting(name) {
 setLighting('studio');
 
 // ---------------------------------------------------------------- loading
-const skinMat = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 1, vertexColors: true, sheen: 0.12, sheenColor: new THREE.Color(0.8, 0.42, 0.36), sheenRoughness: 0.6, specularIntensity: 0.45 });
+// Skin: dielectric (metalness 0) — the scan's metallic map is ~0 anyway and only made the skin look like metal.
+const skinMat = new THREE.MeshPhysicalMaterial({ roughness: 1.0, metalness: 0, vertexColors: true, sheen: 0.18, sheenColor: new THREE.Color(1.0, 0.86, 0.84), sheenRoughness: 0.8, specularIntensity: 0.32, envMapIntensity: 0.7 });
+const skinTone = { value: 0.7 };   // 0 = original texture colour, 1 = very fair
+skinMat.onBeforeCompile = sh => {
+  sh.uniforms.uSkinTone = skinTone;
+  sh.fragmentShader = 'uniform float uSkinTone;\n' + sh.fragmentShader
+    .replace('#include <map_fragment>', `#include <map_fragment>
+      {
+        // fair skin-tone grade on the albedo (linear space): lighten, desaturate the orange, add a cool-pink undertone.
+        vec3 c = diffuseColor.rgb;
+        float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        float sat = (max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b))) / max(1e-4, max(c.r, max(c.g, c.b)));
+        float m = smoothstep(0.035, 0.11, l) * (1.0 - smoothstep(0.84, 0.94, sat));     // skin-like pixels (not dark hair strands / lashes)
+        vec3 t = mix(c, vec3(l), 0.42 * uSkinTone);
+        t *= mix(vec3(1.0), vec3(1.05, 0.97, 0.99), uSkinTone);
+        t = pow(max(t, 0.0), vec3(1.0 - 0.32 * uSkinTone)) * (1.0 + 0.12 * uSkinTone);
+        diffuseColor.rgb = mix(c, min(t, vec3(1.0)), m);
+      }`)
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      totalEmissiveRadiance += diffuseColor.rgb * vec3(0.9, 0.42, 0.36) * 0.035;   // cheap subsurface warmth`);
+};
 const texLoader = new THREE.TextureLoader();
 let rig = null, srcGeom = null;
 const animator = new FaceAnimator();
@@ -110,7 +130,7 @@ async function setTextureLevel(level, onProg) {
   const files = [[`assets/tex/basecolor_${level}k.webp`, true], [`assets/tex/normal_${sub}k.webp`, false], [`assets/tex/orm_${sub}k.webp`, false]];
   let n = 0; const tex = await Promise.all(files.map(([f, s]) => loadTex(f, s).then(t => { onProg && onProg(++n / files.length); return t; })));
   const old = [skinMat.map, skinMat.normalMap, skinMat.roughnessMap];
-  skinMat.map = tex[0]; skinMat.normalMap = tex[1]; skinMat.normalScale.set(1, 1); skinMat.roughnessMap = tex[2]; skinMat.metalnessMap = tex[2];
+  skinMat.map = tex[0]; skinMat.normalMap = tex[1]; skinMat.normalScale.set(1, 1); skinMat.roughnessMap = tex[2]; skinMat.metalnessMap = null;
   skinMat.needsUpdate = true;
   old.forEach(t => t && t !== skinMat.roughnessMap && t.dispose());
   state.texLevel = level; $('selTex').value = level;
@@ -467,6 +487,8 @@ function buildUI() {
     else selectExpr(currentExpr);
   };
   $('rngInt').oninput = e => { animator.intensity = e.target.value / 100; $('oInt').textContent = e.target.value + '%'; };
+  $('rngSkin').oninput = e => { skinTone.value = e.target.value / 100; $('oSkin').textContent = e.target.value + '%'; store.set(LS.settings, { ...store.get(LS.settings, {}), skin: +e.target.value }); };
+  { const sv = store.get(LS.settings, {}).skin; if (sv !== undefined) { $('rngSkin').value = sv; skinTone.value = sv / 100; $('oSkin').textContent = sv + '%'; } }
   $('rngTrans').oninput = e => { animator.transition = e.target.value / 100; $('oTrans').textContent = (e.target.value / 100).toFixed(2) + 's'; };
   for (const [id, k] of [['chkBlink', 'blink'], ['chkHead', 'head'], ['chkBreath', 'breath'], ['chkMicro', 'micro']]) $(id).onchange = e => animator.idle[k] = e.target.checked;
   $('selGaze').onchange = e => animator.idle.gaze = e.target.value;
@@ -567,4 +589,4 @@ loop();
 init().catch(e => fatal(e.message || String(e)));
 
 // debug / automation hooks
-window.studio = { advance(sec, fps = 60) { for (let i = 0; i < sec * fps; i++) { const tr = driver.state === 'speaking' ? driver.update(1 / fps) : null; animator.viseme = tr ? tr.evaluate(tr.time, visOut) : animator.viseme; animator.update(1 / fps, rig, camera); } renderer.render(scene, camera); }, get rig() { return rig; }, animator, driver, scene, camera, controls, renderer, goView, setLighting, selectExpr, exportGLB, state, textToVisemes: null };
+window.studio = { skinTone, advance(sec, fps = 60) { for (let i = 0; i < sec * fps; i++) { const tr = driver.state === 'speaking' ? driver.update(1 / fps) : null; animator.viseme = tr ? tr.evaluate(tr.time, visOut) : animator.viseme; animator.update(1 / fps, rig, camera); } renderer.render(scene, camera); }, get rig() { return rig; }, animator, driver, scene, camera, controls, renderer, goView, setLighting, selectExpr, exportGLB, state, textToVisemes: null };
