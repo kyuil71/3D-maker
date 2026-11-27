@@ -5,14 +5,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRig, ARKIT_52 } from './rig.js?v=20261127f';
-import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127f';
-import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127f';
-import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127f';
-import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127f';
-import { FaceAnimator } from './animator.js?v=20261127f';
-import { initAI } from './ailive.js?v=20261127f';
-import { buildGarment } from './garment.js?v=20261127f';
+import { buildRig, ARKIT_52 } from './rig.js?v=20261127g';
+import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127g';
+import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127g';
+import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127g';
+import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127g';
+import { FaceAnimator } from './animator.js?v=20261127g';
+import { initAI } from './ailive.js?v=20261127g';
+import { buildGarment } from './garment.js?v=20261127g';
 
 const $ = id => document.getElementById(id);
 const ASSETS = window.__ASSETS || null;
@@ -658,7 +658,7 @@ function showCat(id) {
   for (const n of body.children) { const h = homes.get(n.id); if (h) h.parent.insertBefore(n, h.marker); }
   body.textContent = '';
   for (const nid of c.nodes) { const el = $(nid); if (el) body.appendChild(el); }
-  $('dHome').classList.add('hidden'); body.classList.remove('hidden'); $('dBack').classList.remove('hidden'); $('dTitle').textContent = c.ic + ' ' + c.ko;
+  $('dHome').classList.add('hidden'); body.classList.remove('hidden'); $('dBack').classList.remove('hidden'); $('dTitle').textContent = c.ko;
   body.scrollTop = 0; body.querySelectorAll('input[type=range]').forEach(fillRange);
 }
 function restoreAll() { for (const [id, h] of homes) { const el = $(id); if (el && el.parentNode !== h.parent) h.parent.insertBefore(el, h.marker); } }
@@ -670,7 +670,7 @@ function setupDrawer() {
   const home = $('dHome');
   for (const c of CATS) {
     const b = document.createElement('button'); b.dataset.c = c.id;
-    b.innerHTML = `<span class="ic">${c.ic}</span><span>${c.ko}${c.id === 'ai' ? '<span class="st">연결 전</span>' : ''}</span><span class="ar">›</span>`;
+    b.innerHTML = `<span>${c.ko}${c.id === 'ai' ? '<span class="st">연결 전</span>' : ''}</span><span class="ar">›</span>`;
     b.onclick = () => showCat(c.id); home.appendChild(b);
   }
   $('menuBtn').onclick = () => openDrawer();
