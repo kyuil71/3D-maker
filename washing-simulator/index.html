@@ -379,6 +379,9 @@ body:not(.mD) #btoast{bottom:calc(var(--dockH) + 10px)}
 #deco .note{color:var(--ink2);font-size:16px;margin:4px 0 0}
 #deco #litList button{min-width:120px}
 body.mA #v3d{bottom:var(--dockH)} /* 3D가 도크 뒤로 가려지지 않게 */
+body:not(.mA) #dock3d .opv{display:none}
+#dock3d .tools{justify-content:flex-start}
+@media (min-width:900px){#dock3d .tools{justify-content:center}}
 </style>
 </head>
 <body>
@@ -404,12 +407,11 @@ body.mA #v3d{bottom:var(--dockH)} /* 3D가 도크 뒤로 가려지지 않게 */
 <div id="v3d" aria-label="세탁건조기 3D 보기. 한 손가락으로 돌리고 두 손가락으로 확대합니다."></div>
 <div id="hud" class="ui3d" hidden><div id="readout" class="readout"></div></div>
 <div id="views3d" class="ui3d" hidden>
-  <button data-view="op1" data-in="A">화면 조작1</button><button data-view="op2" data-in="A">화면 조작2</button><button data-view="home" data-in="ACD">전체</button><button data-view="front" data-in="A">정면</button><button data-view="left" data-in="A">왼쪽</button><button data-view="right" data-in="A">오른쪽</button><button data-view="top" data-in="A">위</button><button data-view="back" data-in="AC">뒤</button><button data-view="door" data-in="AC">도어</button><button data-view="inside" data-in="AC">드럼 안</button><button data-view="eye" data-in="AC">눈높이</button><button data-view="drawer" data-in="AC">세제함</button><button data-view="base" data-in="AC">하단 필터</button>
+  <button data-view="home" data-in="ACD">전체</button><button data-view="front" data-in="A">정면</button><button data-view="left" data-in="A">왼쪽</button><button data-view="right" data-in="A">오른쪽</button><button data-view="top" data-in="A">위</button><button data-view="back" data-in="AC">뒤</button><button data-view="door" data-in="AC">도어</button><button data-view="inside" data-in="AC">드럼 안</button><button data-view="eye" data-in="AC">눈높이</button><button data-view="drawer" data-in="AC">세제함</button><button data-view="base" data-in="AC">하단 필터</button>
 </div>
 <nav id="dock3d" class="ui3d" aria-label="3D 보기 도구">
-  <div class="brand">BESPOKE AI 콤보 3D<small>686 × 1,110 × 875 mm</small></div>
   <div class="rows">
-  <div class="tools"><button data-d="views">시점</button><button data-d="xray" aria-pressed="false">내부 보기</button><button data-d="sheet">실물 조작</button><button data-d="deco">꾸미기</button><button data-d="hud">상태</button></div>
+  <div class="tools"><button data-view="op1" class="opv">화면 조작1</button><button data-view="op2" class="opv">화면 조작2</button><button data-d="views">시점</button><button data-d="xray" aria-pressed="false">내부 보기</button><button data-d="lamp" aria-pressed="false">드럼 조명</button><button data-d="sheet">실물 조작</button><button data-d="deco">CMF</button><button data-d="hud">상태</button></div>
   <div class="modes" role="tablist" aria-label="보기 모드"><button data-m="A" role="tab">전체 보기</button><button data-m="B" role="tab">화면만</button><button data-m="C" role="tab">화면+본체</button><button data-m="D" role="tab">관찰</button></div>
   </div>
 </nav>
@@ -420,8 +422,8 @@ body.mA #v3d{bottom:var(--dockH)} /* 3D가 도크 뒤로 가려지지 않게 */
   <div class="grp" id="benchg"></div>
   <div id="bdock" class="bdock"></div>
 </section>
-<section id="deco" class="ui3d sheet3d" hidden aria-label="꾸미기">
-  <div class="sh"><h2>꾸미기</h2><div class="tabs" role="tablist"><button data-tab="snd" class="on">소리</button><button data-tab="lit">조명</button><button data-tab="mat">소재·색상</button></div><button data-d="deco">닫기</button></div>
+<section id="deco" class="ui3d sheet3d" hidden aria-label="CMF">
+  <div class="sh"><h2>CMF</h2><div class="tabs" role="tablist"><button data-tab="snd" class="on">소리</button><button data-tab="lit">조명</button><button data-tab="mat">소재·색상</button></div><button data-d="deco">닫기</button></div>
   <div data-pane="snd" class="pane">
    <label class="sl"><span>기계 소리 <small>모터·드럼·물·펌프</small></span><input type="range" min="0" max="100" value="60" data-vol="mach"><b>60</b></label>
    <label class="sl"><span>버튼음 <small>삑 소리·알림음</small></span><input type="range" min="0" max="100" value="60" data-vol="beep"><b>60</b></label>
@@ -580,7 +582,7 @@ function openDoor(src){
  if(S.cycle&&S.cycle.done){/* 완료 후 문 열면 정리 */}
  return true;
 }
-let acT;function autoClose(){clearTimeout(acT);acT=setTimeout(()=>{if(S.door){closeDoor();if(S.power){toast('문이 닫혔어요.');render()}}},4000)}
+let acT;function autoClose(){clearTimeout(acT)/* 3D-BRIDGE: 문은 닫기 전까지 열린 상태 유지 */}
 function closeDoor(){S.door=false;S.adPlusUntil=0;wmChange('door')/* 3D-BRIDGE */}
 
 /* ---------- 코스 실행 ---------- */
@@ -1224,7 +1226,7 @@ const CFG={
  base:{y0:30,y1:176},                      // 하단 덮개 146mm
  screen:{cx:0,cy:1028,pxmm:177.8/Math.hypot(1024,600),modW:196,modH:104}, // 화면은 가로 중앙, 모듈 196×104mm(실버 테두리+블랙 글라스)
  flap:{cx:228,cy:984,w:160,h:188},         // 오른쪽 위 세제함 덮개
- door:{cy:540,R:300,glassR:198,hole:245,seat:318,depth:47,hinge:'left',maxDeg:170}, // 힌지 왼쪽·약 170°(문 열린 사진 확인)
+ door:{cy:540,R:300,glassR:198,hole:245,seat:318,depth:47,hinge:'left',maxDeg:150}, // 힌지 왼쪽. 드럼 세탁기 도어는 보통 130~160° 열림 → 150°
  drum:{R:292,depth:520,front:348},
  cam:{fov:35,min:150,max:6000}
 };
@@ -1240,7 +1242,7 @@ const devCY=CFG.screen.cy;
 let renderer,scene,camera,controls,css,cssScene,devObj,wrap,KEY,RIM,FLOOR;
 const pick=[];               // 탭 가능한 메시
 const P={};                  // 움직이는 부품
-let xray=false,baseOpen=false,shakeT=0;
+let xray=false,baseOpen=false,shakeT=0,drumLamp=false;
 
 function fail(msg){const l=$('#load3d');if(l)l.remove();document.body.classList.remove('in3d');window.btoast&&btoast(msg)}
 
@@ -1293,8 +1295,8 @@ const M={
  side:new THREE.MeshPhysicalMaterial({color:0x1d1f22,metalness:.2,roughness:.55,envMapIntensity:.45,normalMap:embossNormal(),normalScale:new THREE.Vector2(1.3,1.3),clearcoat:.15,clearcoatRoughness:.4}),
  dark:new THREE.MeshPhysicalMaterial({color:0x1f2124,metalness:.1,roughness:.7,envMapIntensity:.4}),
  liner:new THREE.MeshStandardMaterial({color:0x0b0c0d,roughness:.95,side:THREE.BackSide}),
- glass:new THREE.MeshPhysicalMaterial({color:0x020203,metalness:0,roughness:.1,clearcoat:.7,clearcoatRoughness:.04,envMapIntensity:.35,side:THREE.DoubleSide}),
- window:new THREE.MeshPhysicalMaterial({color:0xe4e8eb,metalness:0,roughness:.03,transmission:.94,thickness:10,ior:1.5,envMapIntensity:.5,attenuationColor:new THREE.Color(0x4a545c),attenuationDistance:90,side:THREE.DoubleSide}),
+ glass:new THREE.MeshPhysicalMaterial({color:0x000000,metalness:0,roughness:.02,clearcoat:1,clearcoatRoughness:.005,reflectivity:.7,envMapIntensity:1.1,side:THREE.DoubleSide}), // 도어 링: 짙은 블랙 고광택 글라스
+ window:new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0,transmission:1,thickness:4,ior:1.5,envMapIntensity:.45,specularIntensity:.6,attenuationColor:new THREE.Color(0xf2f6f8),attenuationDistance:2000,side:THREE.DoubleSide}), // 맑은 강화유리
  rubber:new THREE.MeshPhysicalMaterial({color:0x8b9196,roughness:.78,side:THREE.DoubleSide}),
  frontC:new THREE.MeshPhysicalMaterial({color:0xb5b8ba,side:THREE.DoubleSide}), // 도어 자리(원형 함몰)
  frame:new THREE.MeshPhysicalMaterial({color:0x55595d,metalness:.25,roughness:.5,side:THREE.DoubleSide}), // 도어 뒤 프레임
@@ -1410,6 +1412,7 @@ function build(){
  const hub=new THREE.SphereGeometry(52,32,16,0,Math.PI*2,0,Math.PI/2);hub.rotateX(Math.PI/2);hub.scale(1,1,.5);
  mesh(hub,M.spider,{...ddp,z:bz+6});
  // 드럼 조명: 안쪽(뒤)으로만 비추는 스포트라이트. 전면 패널에 빛이 새지 않게
+ P.fill=new THREE.PointLight(0xfff1dc,1.6,560,0);P.fill.position.set(0,D.cy,CFG.drum.front-CFG.drum.depth*.55);P.fill.visible=false;P.root.add(P.fill); // '드럼 조명' 버튼용 보조광(드럼 안에서만)
  P.light=new THREE.SpotLight(0xffdcae,0,1100,1.05,.6,0);P.light.position.set(0,D.cy+170,CFG.drum.front-20);P.light.target.position.set(0,D.cy-120,CFG.drum.front-CFG.drum.depth);P.root.add(P.light,P.light.target);
 
  // 도어: 평평한 앞 유리(바깥 블랙, 가운데 투명) + 회색 프레임 + 깊은 투명 볼
@@ -1432,8 +1435,8 @@ function build(){
  // 뒷면 급수 밸브와 호스(4C 급수 오류 때 빨갛게)
  M.inlet=new THREE.MeshStandardMaterial({color:0x8d9399,roughness:.5,emissive:0xff3b2f,emissiveIntensity:0});M.hose=new THREE.MeshStandardMaterial({color:0xdadddf,roughness:.6});
  {const vx=-210,vy=CFG.H-80,vz=back-6;mesh(new THREE.CylinderGeometry(18,18,30,20).rotateX(Math.PI/2),M.inlet,{x:vx,y:vy,z:vz-12});
-  const cv=new THREE.CatmullRomCurve3([new THREE.Vector3(vx,vy,vz-25),new THREE.Vector3(vx,vy,vz-95),new THREE.Vector3(vx-20,vy+170,vz-125),new THREE.Vector3(vx-30,vy+430,vz-115)]);
-  mesh(new THREE.TubeGeometry(cv,40,10,12),M.hose,{});}
+  const cv=new THREE.CatmullRomCurve3([new THREE.Vector3(vx,vy,vz-25),new THREE.Vector3(vx,vy-70,vz-75),new THREE.Vector3(vx+10,vy-420,vz-88),new THREE.Vector3(vx+20,160,vz-92),new THREE.Vector3(vx+30,14,vz-170),new THREE.Vector3(vx+40,11,vz-420)]); // 호스는 뒷면을 따라 바닥으로
+  mesh(new THREE.TubeGeometry(cv,80,10,12),M.hose,{});}
 
  // 바닥: 그림자 + 접지 그림자
  const fl=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),FLOOR=new THREE.ShadowMaterial({opacity:.08}));fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;scene.add(fl);
@@ -1498,15 +1501,16 @@ function act(a,hitObj){
 }
 function openSheet(toKg){const s=$('#sheet');s.hidden=false;setDock();if(toKg){const k=s.querySelector('.kg');k&&k.scrollIntoView({block:'center'})}}
 function setDock(){
- const on={views:!$('#views3d').hidden,xray,sheet:!$('#sheet').hidden,deco:!$('#deco').hidden,hud:!$('#hud').hidden,spin:autoSpin};
+ const on={views:!$('#views3d').hidden,xray,lamp:drumLamp,sheet:!$('#sheet').hidden,deco:!$('#deco').hidden,hud:!$('#hud').hidden,spin:autoSpin};
  document.querySelectorAll('#dock3d [data-d],#dfloat [data-d]').forEach(b=>{b.classList.toggle('on',!!on[b.dataset.d]);b.setAttribute('aria-pressed',!!on[b.dataset.d])});
  document.querySelectorAll('#dock3d [data-m]').forEach(b=>{const o=b.dataset.m===mode;b.classList.toggle('on',o);b.setAttribute('aria-selected',o)});
 }
-function setXray(v){xray=v;M.window.transmission=v?1:.94;M.window.attenuationDistance=v?1e5:90;M.glass.transparent=v;M.glass.opacity=v?.28:1;M.glass.depthWrite=!v;M.glass.needsUpdate=true}
+function setXray(v){xray=v;M.window.transmission=1;M.window.envMapIntensity=v?.1:.45;M.glass.transparent=v;M.glass.opacity=v?.28:1;M.glass.depthWrite=!v;M.glass.needsUpdate=true}
 function dock(d){
  if(d==='views')$('#views3d').hidden=!$('#views3d').hidden;
  if(d==='xray')setXray(!xray);
  if(d==='spin'){autoSpin=!autoSpin;controls.autoRotate=autoSpin}
+ if(d==='lamp'){drumLamp=!drumLamp;P.fill.visible=drumLamp}
  if(d==='sheet'){const s=$('#sheet');s.hidden=!s.hidden;if(!s.hidden){$('#deco').hidden=true;renderBench()}}
  if(d==='deco'){const s=$('#deco');s.hidden=!s.hidden;if(!s.hidden){$('#sheet').hidden=true;renderDeco()}}
  if(d==='hud')$('#hud').hidden=!$('#hud').hidden;
@@ -1836,7 +1840,7 @@ function frame(now){
  const dir=st&&['wash','rinse','soak'].includes(st.k)?(Math.sign(Math.sin(now/1600))||1):1;
  ang+=(vis>300?Math.min(vis/60,9)*2*Math.PI*.35:vis/60*2*Math.PI)*dt*dir;P.drum.rotation.z=-ang;
  const wDrum=dt>0?-(ang-lastAng)/dt:0;lastAng=ang;
- P.light.intensity+=((S.power&&(S.light||S.door)?1.4:0)-P.light.intensity)*Math.min(1,dt*6);
+ P.light.intensity+=((drumLamp?4.2:S.power&&(S.light||S.door)?1.4:0)-P.light.intensity)*Math.min(1,dt*6);
  // 세제함·하단 덮개·필터
  drawerZ+=((S.boxIn?0:260)-drawerZ)*Math.min(1,dt*5);P.drawer.position.z=drawerZ;
  P.detMain.scale.y=Math.max(.5,S.det.main.ml/S.det.main.cap*150);P.detSel.scale.y=Math.max(.5,S.det.sel.ml/S.det.sel.cap*150);
@@ -1853,7 +1857,7 @@ function frame(now){
  if(mode!=='B'){renderer.render(scene,camera);css.render(cssScene,camera)}
  // 느린 기기면 한 번만 품질 낮춤
  if(!lowQ){fpsN++;fpsT+=dt;if(fpsN===120){lowQ=fpsT/fpsN>.03?'low':'ok';
-  if(lowQ==='low'){renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));M.window.transmission=0;M.window.transparent=true;M.window.opacity=.35;M.window.needsUpdate=true}}}
+  if(lowQ==='low'){renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));M.window.transmission=0;M.window.transparent=true;M.window.opacity=.18;M.window.needsUpdate=true}}}
  if(!window.__3dReady){window.__3dReady=true;const l=$('#load3d');if(l){l.classList.add('out');setTimeout(()=>l.remove(),450)}btoast('한 손가락으로 돌리고, 두 손가락으로 확대하세요. 문·세제함·하단 덮개를 눌러 보세요.')}
  requestAnimationFrame(frame);
 }
