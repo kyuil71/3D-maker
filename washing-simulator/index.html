@@ -303,16 +303,18 @@ body.in3d .ui3d[hidden]{display:none!important}
 #hud{pointer-events:auto;flex-direction:column;width:min(340px,58vw);padding:8px 12px;border-radius:14px;background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink)}
 #hud .readout{margin-top:0;grid-template-columns:1fr}
 @media (min-width:560px){#hud .readout{grid-template-columns:1fr 1fr}}
-#views3d{position:fixed;left:0;right:0;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:12;overflow-x:auto;gap:8px;padding:8px 10px;scrollbar-width:none;justify-content:flex-start}
+#views3d{position:fixed;left:0;right:0;bottom:var(--dockH);z-index:12;overflow-x:auto;gap:8px;padding:8px 10px;scrollbar-width:none;justify-content:flex-start}
 #views3d::-webkit-scrollbar{display:none}
 #views3d button{flex:0 0 auto;min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(8px);font-size:16px;color:var(--ink)}
 #views3d button.on{background:var(--blu);border-color:var(--blu);color:#fff}
-#dock3d{position:fixed;left:0;right:0;bottom:0;z-index:12;gap:6px;justify-content:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
-#dock3d button{flex:1;min-width:0;max-width:150px;min-height:52px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);font-size:16px;color:var(--ink);padding:0 4px;line-height:1.15}
+#dock3d{position:fixed;left:0;right:0;bottom:0;z-index:12;flex-direction:column;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+#dock3d .tools,#dock3d .modes{display:flex;gap:6px;justify-content:center}
+#dock3d .tools button{min-height:44px}
+#dock3d .modes button{min-height:52px;font-weight:600}
+#dock3d button{flex:1;min-width:0;max-width:170px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);font-size:16px;color:var(--ink);padding:0 4px;line-height:1.15}
 #dock3d button.on{background:var(--blu);border-color:var(--blu);color:#fff}
-#big2d{position:fixed;inset:0;z-index:20;flex-direction:column;align-items:center;gap:12px;padding:calc(14px + env(safe-area-inset-top,0px)) 10px calc(14px + env(safe-area-inset-bottom,0px));background:rgba(10,12,14,.74);backdrop-filter:blur(6px)}
+#big2d{position:fixed;left:0;right:0;top:0;bottom:var(--dockH);z-index:9;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 8px 10px;background:#0e1113}
 #big2dIn{position:relative;width:100%;flex:1;min-height:0}
-#big2d .x{min-height:52px;padding:0 22px;border-radius:14px;border:1px solid #3a4046;background:#22272b;color:#e4e8eb;font-size:16px}
 #sheet{position:fixed;left:0;right:0;bottom:0;z-index:25;flex-direction:column;gap:12px;max-width:1180px;margin:0 auto;max-height:74vh;overflow:auto;padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));background:var(--pg);color:var(--ink);border-radius:20px 20px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.28)}
 #sheet .sh{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:-12px;background:var(--pg);padding:4px 0 6px;z-index:1}
 #sheet .sh h2{margin:0;font-size:18px}
@@ -321,6 +323,27 @@ body.in3d .ui3d[hidden]{display:none!important}
 #sheet .grp{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
 #load3d{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:#d9dde1;color:#20252a;font-size:16px;transition:opacity .4s}
 #load3d.out{opacity:0;pointer-events:none}
+
+/* ----- 보기 모드 (3D-BRIDGE) ----- */
+body{--dockH:calc(118px + env(safe-area-inset-bottom,0px));--split:40vh;--splitW:56vw}
+body.mB #v3d,body.mB #top3d,body.mB #views3d{display:none!important}
+body.mB .tools [data-d=views],body.mB .tools [data-d=xray]{display:none}
+body.mC #v3d{top:var(--split);bottom:var(--dockH)}
+body.mC #big2d{bottom:auto;height:var(--split)}
+body.mC #top3d{top:var(--split);padding-top:8px}
+body.mC #top3d .ttl{display:none}
+@media (orientation:landscape){
+ body.mC #v3d{top:0;left:var(--splitW)}
+ body.mC #big2d{height:auto;bottom:var(--dockH);right:auto;width:var(--splitW)}
+ body.mC #top3d{top:0;left:var(--splitW);padding-top:calc(10px + env(safe-area-inset-top,0px))}
+ body.mC #views3d{left:var(--splitW)}
+}
+body.mD #top3d,body.mD #dock3d,body.mD #views3d{display:none!important}
+#dfloat{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:12;gap:8px}
+#dfloat button{min-height:48px;padding:0 16px;border-radius:24px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(10px);color:var(--ink);font-size:16px}
+#dfloat button.on{background:var(--blu);border-color:var(--blu);color:#fff}
+body.mD #btoast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+body:not(.mD) #btoast{bottom:calc(var(--dockH) + 10px)}
 </style>
 </head>
 <body>
@@ -349,12 +372,14 @@ body.in3d .ui3d[hidden]{display:none!important}
   <div id="hud" class="ui3d" hidden><div id="readout" class="readout"></div></div>
 </div>
 <div id="views3d" class="ui3d" hidden>
-  <button data-view="home">처음</button><button data-view="front">정면</button><button data-view="left">왼쪽</button><button data-view="right">오른쪽</button><button data-view="top">위</button><button data-view="back">뒤</button><button data-view="screen">화면</button><button data-view="door">도어</button><button data-view="inside">드럼 안</button><button data-view="drawer">세제함</button><button data-view="base">하단 필터</button>
+  <button data-view="home" data-in="ACD">전체</button><button data-view="front" data-in="A">정면</button><button data-view="left" data-in="A">왼쪽</button><button data-view="right" data-in="A">오른쪽</button><button data-view="top" data-in="A">위</button><button data-view="back" data-in="AC">뒤</button><button data-view="screen" data-in="A">화면</button><button data-view="door" data-in="AC">도어</button><button data-view="inside" data-in="AC">드럼 안</button><button data-view="eye" data-in="AC">눈높이</button><button data-view="drawer" data-in="AC">세제함</button><button data-view="base" data-in="AC">하단 필터</button>
 </div>
 <nav id="dock3d" class="ui3d" aria-label="3D 보기 도구">
-  <button data-d="views">시점</button><button data-d="xray" aria-pressed="false">내부 보기</button><button data-d="big">화면 크게</button><button data-d="sheet">실물 조작</button><button data-d="hud">상태</button>
+  <div class="tools"><button data-d="views">시점</button><button data-d="xray" aria-pressed="false">내부 보기</button><button data-d="sheet">실물 조작</button><button data-d="hud">상태</button></div>
+  <div class="modes" role="tablist" aria-label="보기 모드"><button data-m="A" role="tab">전체 보기</button><button data-m="B" role="tab">화면만</button><button data-m="C" role="tab">화면+본체</button><button data-m="D" role="tab">관찰</button></div>
 </nav>
-<div id="big2d" class="ui3d" hidden><div id="big2dIn"></div><button class="x" data-d="big">3D로 돌아가기</button></div>
+<div id="dfloat" class="ui3d" hidden><button data-d="spin" aria-pressed="true">자동 회전</button><button data-m="A">관찰 끝내기</button></div>
+<div id="big2d" class="ui3d" hidden><div id="big2dIn"></div></div>
 <section id="sheet" class="ui3d" hidden aria-label="실물 조작">
   <div class="sh"><h2>실물 조작</h2><button data-d="sheet">닫기</button></div>
   <div class="grp" id="benchg"></div>
@@ -1123,7 +1148,7 @@ document.addEventListener('input',e=>{if(e.target.dataset.bin==='kg'){const nk=+
 document.addEventListener('change',e=>{if(e.target.dataset.bin==='kg'&&S.power)render()});
 
 /* ---------- 크기 맞추기 ---------- */
-function fit(){/* 3D-BRIDGE */const _d=$('#device'),_h=_d.dataset.host;if(_h==='css3d'){_d.style.transform='';return}if(_h==='overlay'){const o=_d.parentElement,s=Math.min(o.clientWidth/1124,o.clientHeight/640)*.98;_d.style.transform=`scale(${s})`;return}const sc=Math.min(innerWidth/1124,innerHeight/640)*.98;$('#device').style.transform=`scale(${sc})`;$('#stagewrap').style.height=640*sc+'px'}
+function fit(){/* 3D-BRIDGE */const _d=window.__DEV||$('#device');if(!_d)return;const _h=_d.dataset.host;if(_h==='css3d'){_d.style.transform='';return}if(_h==='overlay'){const o=_d.parentElement,s=Math.min(o.clientWidth/1124,o.clientHeight/640)*.98;_d.style.transform=`scale(${s})`;return}const sc=Math.min(innerWidth/1124,innerHeight/640)*.98;$('#device').style.transform=`scale(${sc})`;$('#stagewrap').style.height=640*sc+'px'}
 addEventListener('resize',fit);fit();
 render();renderReadout();requestAnimationFrame(draw);
 window.__S=S;window.__ACT=ACT;window.__bixby=bixby;
@@ -1156,6 +1181,7 @@ const CFG={
 const FINISH={'#B5B8BA':{metal:1},'#5E6266':{metal:1},'#8E9296':{metal:1},'#BDB6AA':{metal:0},'#2B2D30':{metal:.5},'#E8E6E1':{metal:0}};
 
 const S=window.__S, $=s=>document.querySelector(s), DEV=document.getElementById('device');
+window.__DEV=DEV; // 3D 레이어로 옮겨 붙인 뒤에도 기존 fit()이 찾을 수 있게
 const DEV_W=1124,DEV_H=640,SCR_X=88,SCR_Y=20;
 const devCX=CFG.screen.cx-(SCR_X+512-DEV_W/2)*CFG.screen.pxmm; // 기기 모듈 중심 (화면은 전원 영역만큼 오른쪽)
 const devCY=CFG.screen.cy;
@@ -1217,7 +1243,7 @@ const M={
  dark:new THREE.MeshStandardMaterial({color:0x1f2124,metalness:.1,roughness:.7,envMapIntensity:.4}),
  liner:new THREE.MeshStandardMaterial({color:0x0b0c0d,roughness:.95,side:THREE.BackSide}),
  glass:new THREE.MeshPhysicalMaterial({color:0x020203,metalness:0,roughness:.1,clearcoat:.7,clearcoatRoughness:.04,envMapIntensity:.35,side:THREE.DoubleSide}),
- window:new THREE.MeshPhysicalMaterial({color:0xe4e8eb,metalness:0,roughness:.03,transmission:.94,thickness:10,ior:1.5,envMapIntensity:.5,attenuationColor:new THREE.Color(0x30373d),attenuationDistance:22,side:THREE.DoubleSide}),
+ window:new THREE.MeshPhysicalMaterial({color:0xe4e8eb,metalness:0,roughness:.03,transmission:.94,thickness:10,ior:1.5,envMapIntensity:.5,attenuationColor:new THREE.Color(0x4a545c),attenuationDistance:90,side:THREE.DoubleSide}),
  rubber:new THREE.MeshStandardMaterial({color:0x8b9196,roughness:.78,side:THREE.DoubleSide}),
  frontC:new THREE.MeshPhysicalMaterial({color:0xb5b8ba,side:THREE.DoubleSide}), // 도어 자리(원형 함몰)
  frame:new THREE.MeshStandardMaterial({color:0x55595d,metalness:.25,roughness:.5,side:THREE.DoubleSide}), // 도어 뒤 프레임
@@ -1349,6 +1375,13 @@ function build(){
  P.hingeD.push(mesh(new RoundedBoxGeometry(18,34,28,2,4),M.frame,{...dd,x:ox-hs*284,z:oz-10})); // 걸쇠(문 끝쪽) — 닫히면 숨김
  mesh(new THREE.TorusGeometry(7,1.6,8,24),M.chrome,{...dd,x:ox,y:-272,z:oz+DD+.5,shadow:false});
  P.led=mesh(new THREE.SphereGeometry(4.5,16,12),M.led,{...dd,x:ox+175,y:208,z:oz+DD,shadow:false});
+ P.dox=ox;P.doz=oz;P.dd=DD;
+
+ // 뒷면 급수 밸브와 호스(4C 급수 오류 때 빨갛게)
+ M.inlet=new THREE.MeshStandardMaterial({color:0x8d9399,roughness:.5,emissive:0xff3b2f,emissiveIntensity:0});M.hose=new THREE.MeshStandardMaterial({color:0xdadddf,roughness:.6});
+ {const vx=-210,vy=CFG.H-80,vz=back-6;mesh(new THREE.CylinderGeometry(18,18,30,20).rotateX(Math.PI/2),M.inlet,{x:vx,y:vy,z:vz-12});
+  const cv=new THREE.CatmullRomCurve3([new THREE.Vector3(vx,vy,vz-25),new THREE.Vector3(vx,vy,vz-95),new THREE.Vector3(vx-20,vy+170,vz-125),new THREE.Vector3(vx-30,vy+430,vz-115)]);
+  mesh(new THREE.TubeGeometry(cv,40,10,12),M.hose,{});}
 
  // 바닥: 그림자 + 접지 그림자
  const fl=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),new THREE.ShadowMaterial({opacity:.08}));fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;scene.add(fl);
@@ -1384,11 +1417,12 @@ const VIEWS={
  door:()=>({t:[0,CFG.door.cy,CFG.frontZ],dir:[0,.06,1],d:fitDist(760,760)}),
  inside:()=>({t:[0,CFG.door.cy,0],dir:[.04,.06,1],d:900}),
  drawer:()=>({t:[CFG.flap.cx,CFG.flap.cy,CFG.frontZ+60],dir:[.3,.5,1],d:fitDist(460,460)}),
- base:()=>({t:[0,110,CFG.frontZ],dir:[0,.4,1],d:fitDist(780,420)})
+ base:()=>({t:[0,110,CFG.frontZ],dir:[0,.4,1],d:fitDist(780,420)}),
+ eye:()=>({t:[0,560,300],p:[0,1600,1150]}) // 서 있는 사람 눈높이(약 1.6m)에서 내려다보기
 };
 let fly=null;
 function flyTo(name){
- const v=VIEWS[name]();const t=new THREE.Vector3(...v.t),p=new THREE.Vector3(...v.dir).normalize().multiplyScalar(v.d).add(t);
+ const v=VIEWS[name]();const t=new THREE.Vector3(...v.t),p=v.p?new THREE.Vector3(...v.p):new THREE.Vector3(...v.dir).normalize().multiplyScalar(v.d).add(t);
  fly={t0:performance.now(),dur:700,fp:camera.position.clone(),ft:controls.target.clone(),tp:p,tt:t};
  document.querySelectorAll('#views3d button').forEach(b=>b.classList.toggle('on',b.dataset.view===name));
 }
@@ -1397,7 +1431,7 @@ const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 /* ---------- 본체 탭 → 기존 bench() ---------- */
 function act(a,hitObj){
  const busy=window.cycleActive&&cycleActive()&&!S.cycle.paused;
- if(a==='door'){bench('door');return}
+ if(a==='door'){if(ajar&&S.door){ajar=false;return}bench('door');return}
  if(a==='drawer'){bench('box');return}
  if(a.startsWith('fill:')){if(S.boxIn){bench('box');return}bench(a);return}
  if(a==='base'){baseOpen=!baseOpen;btoast(baseOpen?'하단 덮개를 열었어요. 먼지 필터와 배수 필터를 누를 수 있어요.':'하단 덮개를 닫았어요.');return}
@@ -1408,18 +1442,40 @@ function act(a,hitObj){
 }
 function openSheet(toKg){const s=$('#sheet');s.hidden=false;setDock();if(toKg){const k=s.querySelector('.kg');k&&k.scrollIntoView({block:'center'})}}
 function setDock(){
- const on={views:!$('#views3d').hidden,xray,big:!$('#big2d').hidden,sheet:!$('#sheet').hidden,hud:!$('#hud').hidden};
- document.querySelectorAll('#dock3d button').forEach(b=>{b.classList.toggle('on',!!on[b.dataset.d]);b.setAttribute('aria-pressed',!!on[b.dataset.d])});
+ const on={views:!$('#views3d').hidden,xray,sheet:!$('#sheet').hidden,hud:!$('#hud').hidden,spin:autoSpin};
+ document.querySelectorAll('#dock3d [data-d],#dfloat [data-d]').forEach(b=>{b.classList.toggle('on',!!on[b.dataset.d]);b.setAttribute('aria-pressed',!!on[b.dataset.d])});
+ document.querySelectorAll('#dock3d [data-m]').forEach(b=>{const o=b.dataset.m===mode;b.classList.toggle('on',o);b.setAttribute('aria-selected',o)});
 }
-function setXray(v){xray=v;M.window.transmission=v?1:.94;M.window.attenuationDistance=v?1e5:22;M.glass.transparent=v;M.glass.opacity=v?.28:1;M.glass.depthWrite=!v;M.glass.needsUpdate=true}
+function setXray(v){xray=v;M.window.transmission=v?1:.94;M.window.attenuationDistance=v?1e5:90;M.glass.transparent=v;M.glass.opacity=v?.28:1;M.glass.depthWrite=!v;M.glass.needsUpdate=true}
 function dock(d){
  if(d==='views')$('#views3d').hidden=!$('#views3d').hidden;
  if(d==='xray')setXray(!xray);
- if(d==='big'){if($('#big2d').hidden)mountDevice('overlay');else{$('#big2d').hidden=true;mountDevice('css3d')}}
+ if(d==='spin'){autoSpin=!autoSpin;controls.autoRotate=autoSpin}
  if(d==='sheet'){const s=$('#sheet');s.hidden=!s.hidden;if(!s.hidden)renderBench()}
  if(d==='hud')$('#hud').hidden=!$('#hud').hidden;
  setDock();
 }
+
+/* ---------- 보기 모드 ----------
+   A 전체 보기: 3D 본체 + 패널 위 화면
+   B 화면만: 7인치 화면만 크게(본체를 볼 수 없는 상황)
+   C 화면+본체: 화면을 조작하며 3D로 본체 일부 확인 (세로 위/아래, 가로 좌/우)
+   D 관찰: UI 없이 기계만, 자동 회전 */
+let mode='A',autoSpin=false;
+const MODE_VIEW={A:'home',C:'door',D:'home'};
+function setMode(m){
+ if(!'ABCD'.includes(m))return;mode=m;
+ document.body.classList.remove('mA','mB','mC','mD');document.body.classList.add('m'+m);
+ if(m==='B'||m==='C')mountDevice('overlay');else{$('#big2d').hidden=true;mountDevice('css3d')}
+ $('#views3d').hidden=m!=='C';$('#dfloat').hidden=m!=='D';
+ document.querySelectorAll('#views3d [data-view]').forEach(b=>b.hidden=!(b.dataset.in||'A').includes(m));
+ autoSpin=m==='D';controls.autoRotate=autoSpin;controls.autoRotateSpeed=1.2;
+ if(m==='C'&&innerWidth<700)$('#hud').hidden=true;
+ setDock();
+ requestAnimationFrame(()=>{resize();window.fit&&fit();if(MODE_VIEW[m])flyTo(MODE_VIEW[m])});
+ window.__mode=m;
+}
+function resize(){const h=$('#v3d'),w=h.clientWidth,hh=h.clientHeight;if(!w||!hh)return;renderer.setSize(w,hh);css.setSize(w,hh);camera.aspect=w/hh;camera.updateProjectionMatrix()}
 
 /* ---------- 초기화 ---------- */
 function init(){
@@ -1458,12 +1514,114 @@ function init(){
   const h=ray.intersectObjects(pick,false)[0];if(h){S.realIdle=0;act(h.object.userData.act,h.object)}});
  cv.addEventListener('pointercancel',()=>{down=null});
 
- document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b)dock(b.dataset.d);const w=e.target.closest('[data-view]');if(w)flyTo(w.dataset.view)});
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b)dock(b.dataset.d);const w=e.target.closest('[data-view]');if(w)flyTo(w.dataset.view);const m=e.target.closest('[data-m]');if(m)setMode(m.dataset.m)});
  addEventListener('wm:change',e=>{if(e.detail&&e.detail.what==='doorDenied')shakeT=.5});
- addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);css.setSize(innerWidth,innerHeight)});
+ addEventListener('resize',resize);
+ addEventListener('wm:change',e=>{const w=e.detail&&e.detail.what;if(w==='error'&&mode==='C'&&S.cycle&&S.cycle.err){if(S.cycle.err==='5C'){baseOpen=true;flyTo('base')}else flyTo('back')}});
  if(innerWidth>=700)$('#hud').hidden=false;
- setDock();renderReadout();
+ buildMotion();setMode('A');renderReadout();
  requestAnimationFrame(t=>{last=t;requestAnimationFrame(frame)});
+}
+
+/* ---------- 동작 표현 (③): 모두 기존 상태 S에서 계산 ---------- */
+const CLOTH=['#E7D9C4','#7FA7D8','#D98C8C','#F1F1EC','#8FBF9F','#3F4A5C','#E3C76B','#B79BD8']; // 기존 draw()와 같은 색
+const Mo={clothes:[]};let ajar=false,prevAuto=0,prevDoor=false,fogO=0,blurOn=false,lastAng=0;
+function avgBlur(img,shift){ // 같은 그림을 여러 번 겹쳐 평균 → 모션블러
+ const W=img.width,H=img.height,c=canvas(W,H),g=c.getContext('2d'),n=14;
+ for(let i=0;i<n;i++){g.globalAlpha=1/(i+1);shift(g,(i/(n-1)-.5),W,H,img)}return c}
+function blurTexOf(t,kind){
+ const c=kind==='h'?avgBlur(t.image,(g,k,W,H,img)=>{const dx=k*W*.12;g.drawImage(img,dx,0);g.drawImage(img,dx-W,0);g.drawImage(img,dx+W,0)})
+  :avgBlur(t.image,(g,k,W,H,img)=>{g.save();g.translate(W/2,H/2);g.rotate(k*.5);g.drawImage(img,-W/2,-H/2);g.restore()});
+ const b=new THREE.CanvasTexture(c);b.colorSpace=THREE.SRGBColorSpace;b.wrapS=t.wrapS;b.wrapT=t.wrapT;b.repeat.copy(t.repeat);b.anisotropy=8;return b}
+function fogTex(){const c=canvas(256,256),g=c.getContext('2d');g.fillStyle='#d8d8d8';g.fillRect(0,0,256,256);
+ for(let i=0;i<900;i++){const r=Math.random()*2.6+.6;g.fillStyle=Math.random()<.6?'#fff':'#7a7a7a';g.beginPath();g.arc(Math.random()*256,Math.random()*256,r,0,7);g.fill()}
+ return new THREE.CanvasTexture(c)}
+function bubbleTex(){const c=canvas(64,64),g=c.getContext('2d'),r=g.createRadialGradient(32,32,4,32,32,30);
+ r.addColorStop(0,'rgba(255,255,255,.15)');r.addColorStop(.7,'rgba(255,255,255,.35)');r.addColorStop(.88,'rgba(255,255,255,.95)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);
+ return new THREE.CanvasTexture(c)}
+function pileXY(i){const col=i%6,row=Math.floor(i/6),R=CFG.drum.R,a=-Math.PI/2+(col-2.5)*.24+(row%2)*.12,r=R-48-row*46;return[Math.cos(a)*r,Math.sin(a)*r]}
+
+function buildMotion(){
+ const R=CFG.drum.R,D=CFG.drum,cy=CFG.door.cy;
+ // 모션블러용 텍스처
+ Mo.pS=M.drumIn.map;Mo.pB=blurTexOf(M.drumIn.map,'h');Mo.bS=M.back.map;Mo.bB=blurTexOf(M.back.map,'r');
+ // 물: 수면(출렁임) + 정면 단면
+ M.water=new THREE.MeshPhysicalMaterial({color:0x9fcbe8,roughness:.06,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false});
+ Mo.wg=new THREE.Group();Mo.wg.position.set(0,cy,0);P.root.add(Mo.wg);
+ const sg=new THREE.PlaneGeometry(1,D.depth-24,24,6);sg.rotateX(-Math.PI/2);Mo.sBase=sg.attributes.position.array.slice();
+ Mo.surf=new THREE.Mesh(sg,M.water);Mo.surf.position.z=D.front-D.depth/2;Mo.surf.renderOrder=2;Mo.wg.add(Mo.surf);
+ Mo.face=new THREE.Mesh(new THREE.BufferGeometry(),M.water);Mo.face.position.z=D.front-6;Mo.face.renderOrder=2;Mo.wg.add(Mo.face);Mo.faceY=null;
+ // 거품: 아래에서 올라오는 방울 + 수면 거품
+ const NB=260,bp=new Float32Array(NB*3);Mo.bv=new Float32Array(NB);
+ for(let i=0;i<NB;i++){bp[i*3]=(Math.random()-.5)*2*R*.8;bp[i*3+1]=-R+20+Math.random()*60;bp[i*3+2]=D.front-30-Math.random()*(D.depth-60);Mo.bv[i]=60+Math.random()*140}
+ const bg=new THREE.BufferGeometry();bg.setAttribute('position',new THREE.BufferAttribute(bp,3));
+ Mo.bm=new THREE.PointsMaterial({size:24,map:bubbleTex(),transparent:true,opacity:0,depthWrite:false,color:0xffffff});
+ Mo.bub=new THREE.Points(bg,Mo.bm);Mo.bub.frustumCulled=false;Mo.wg.add(Mo.bub);Mo.bubA=0;
+ // 세탁물
+ Mo.cg=new THREE.Group();Mo.cg.position.set(0,cy,0);P.root.add(Mo.cg);
+ Mo.geos=[0,1,2].map(k=>{const g=new THREE.SphereGeometry(1,20,14),a=g.attributes.position;
+  for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i),n=1+.22*Math.sin(x*4+k*2)*Math.cos(y*5-k)+.12*Math.sin(z*7+k*3);a.setXYZ(i,x*n,y*n,z*n)}
+  g.computeVertexNormals();return g});
+ // 유리 김 서림(앞 유리 안쪽 + 볼 안쪽)
+ M.fog=new THREE.MeshStandardMaterial({color:0xf3f5f6,roughness:1,transparent:true,opacity:0,alphaMap:fogTex(),depthWrite:false,side:THREE.DoubleSide});
+ const f1=new THREE.Mesh(new THREE.CircleGeometry(CFG.door.glassR-2,64),M.fog);f1.position.set(P.dox,0,P.doz+P.dd-8);f1.renderOrder=3;P.door.add(f1);
+ const f2=new THREE.Mesh(lathe([[210,-4],[205,-30],[194,-78],[168,-118],[118,-147],[0,-156]],64),M.fog);f2.position.set(P.dox,0,P.doz);f2.renderOrder=3;P.door.add(f2);
+}
+function syncClothes(){
+ const N=Math.min(22,Math.round(S.kg*2.2)),D=CFG.drum;
+ while(Mo.clothes.length<N){const i=Mo.clothes.length,base=new THREE.Color(CLOTH[i%8]),m=new THREE.MeshStandardMaterial({color:base.clone(),roughness:.92});
+  const me=new THREE.Mesh(Mo.geos[i%3],m);me.scale.set(60+Math.random()*30,32+Math.random()*16,80+Math.random()*50);me.userData.act='drum';pick.push(me);Mo.cg.add(me);
+  const [x,y]=pileXY(i);Mo.clothes.push({me,m,base,i,x,y,vx:0,vy:0,phi:Math.atan2(y,x),z:D.front-95-Math.random()*(D.depth-170),mode:'pile',fallAt:1.3+Math.random()*.8,spin:0,rot:Math.random()*6})}
+ while(Mo.clothes.length>N){const c=Mo.clothes.pop();Mo.cg.remove(c.me);pick.splice(pick.indexOf(c.me),1);c.m.dispose()}
+}
+function updateMotion(dt,now,vis,st,wDrum){
+ const R=CFG.drum.R,RW=R-48,G=9810,k=st&&st.k,cy=S.cycle;
+ // 진동: 탈수 가속 구간(약 300~800rpm)에서 가장 크고, 세탁물이 많을수록 큼
+ let vib=0;if(S.rpm>60&&(k==='spin'||k==='dspin'||S.rpm>200)){const bell=Math.exp(-Math.pow((S.rpm-520)/240,2));vib=(.35+1.9*bell)*(1+Math.min(S.kg,12)/8)}
+ P.root.position.set(vib*Math.sin(now*.23),vib*.55*Math.sin(now*.31+1),0);P.root.rotation.z=vib*.0008*Math.sin(now*.19);
+ devObj.position.x=devCX+P.root.position.x;devObj.position.y=devCY+P.root.position.y;
+ // 모션블러: 빠르게 돌면 흐린 텍스처로
+ const b=vis>450;if(b!==blurOn){blurOn=b;M.drumIn.map=b?Mo.pB:Mo.pS;M.drumIn.normalScale.setScalar(b?.15:1.4);M.back.map=b?Mo.bB:Mo.bS}
+ // 물
+ const lvl=S.water,show=lvl>.01;Mo.wg.visible=show;
+ if(show){
+  const yl=-R+lvl*R*1.15,c=Math.sqrt(Math.max(0,R*R-yl*yl))-4,a=Mo.surf.geometry.attributes.position,arr=a.array,B=Mo.sBase;
+  const amp=(k==='wash'||k==='rinse'||k==='soak'||k==='fill'?3+Math.min(S.rpm,60)/60*7:1.2),tilt=Math.sign(wDrum)*Math.min(Math.abs(wDrum)/5,1)*.07,t=now/1000;
+  for(let i=0;i<arr.length;i+=3){const x=B[i]*2*c,z=B[i+2];arr[i]=x;arr[i+1]=yl+tilt*x+amp*Math.sin(x*.025+t*3.1)*Math.cos(z*.012+t*2.3)+amp*.4*Math.sin(x*.06-t*4.7)}
+  a.needsUpdate=true;Mo.surf.geometry.computeVertexNormals();
+  if(Mo.faceY===null||Math.abs(Mo.faceY-yl)>1.5){Mo.faceY=yl;const sh=new THREE.Shape(),th=Math.atan2(yl,c+4);sh.moveTo(-(c+4),yl);sh.lineTo(c+4,yl);sh.absarc(0,0,R-1,th,-Math.PI-th,true);Mo.face.geometry.dispose();Mo.face.geometry=new THREE.ShapeGeometry(sh,32)}
+  const soapy=cy&&cy.dosed&&(k==='wash'||k==='soak');M.water.color.set(soapy?0xcfe3ee:0x6fb0e0);M.water.opacity=soapy?.72:.58;
+  // 거품
+  const bubOn=!!(cy&&!cy.paused&&(k==='soak'||((k==='fill'||k==='wash')&&cy.sel&&cy.sel.o&&cy.sel.o.bubble==='켜짐')));
+  Mo.bubA+=((bubOn?.85:0)-Mo.bubA)*Math.min(1,dt*1.5);Mo.bm.opacity=Mo.bubA;Mo.bub.visible=Mo.bubA>.02;
+  if(Mo.bub.visible){const p=Mo.bub.geometry.attributes.position,q=p.array,n=q.length/3;
+   for(let i=0;i<n;i++){let x=q[i*3],y=q[i*3+1];const foam=i>=n-80;
+    if(foam){const fx=((i*97)%200)/200;q[i*3]=(fx*2-1)*c*.95+Math.sin(t*1.3+i)*8;q[i*3+1]=yl+4+Math.abs(Math.sin(t*2+i))*6;continue}
+    y+=Mo.bv[i]*dt;x+=Math.sin(t*3+i)*12*dt;if(y>yl){x=(Math.random()-.5)*2*c*.9;y=-Math.sqrt(Math.max(0,R*R-x*x))+15}q[i*3]=x;q[i*3+1]=y}
+   p.needsUpdate=true}
+ }
+ // 세탁물: 저속에서는 리프터에 걸려 올라갔다 떨어지고, 300rpm 이상이면 벽에 붙어 함께 회전
+ syncClothes();
+ const wet=S.wet||lvl>.05||(k&&['fill','soak','wash','rinse'].includes(k)),N=Mo.clothes.length;
+ for(const c of Mo.clothes){
+  if(vis>300){const a=c.i/Math.max(1,N)*Math.PI*2-ang;c.x+=((R-40)*Math.cos(a)-c.x)*Math.min(1,dt*8);c.y+=((R-40)*Math.sin(a)-c.y)*Math.min(1,dt*8);c.mode='wall'}
+  else if(Math.abs(wDrum)>.4||c.mode==='fall'){
+   if(c.mode==='pile'||c.mode==='wall'){c.mode='carry';c.phi=Math.atan2(c.y,c.x)}
+   if(c.mode==='carry'){c.phi+=wDrum*dt;c.x=RW*Math.cos(c.phi);c.y=RW*Math.sin(c.phi);
+    let rel=(c.phi+Math.PI/2)*(wDrum>=0?1:-1);rel=((rel%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    if(Math.abs(wDrum)<.4){c.mode='pile'}else if(rel>c.fallAt&&rel<Math.PI*1.6){c.mode='fall';const v=wDrum*RW;c.vx=-Math.sin(c.phi)*v;c.vy=Math.cos(c.phi)*v;c.spin=(Math.random()-.5)*9}}
+   else{c.vy-=G*dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.rot+=c.spin*dt;const d=Math.hypot(c.x,c.y);
+    if(d>RW){c.x*=RW/d;c.y*=RW/d;c.phi=Math.atan2(c.y,c.x);c.fallAt=1.2+Math.random()*.9;c.mode=Math.abs(wDrum)>.4?'carry':'pile'}}
+  }else{const [tx,ty]=pileXY(c.i);c.x+=(tx-c.x)*Math.min(1,dt*3);c.y+=(ty-c.y)*Math.min(1,dt*3);c.mode='pile'}
+  c.me.position.set(c.x,c.y,c.z);c.me.rotation.z=c.mode==='fall'?c.rot:Math.atan2(c.y,c.x)+Math.PI/2;
+  c.m.color.copy(c.base).multiplyScalar(wet?.6:1);c.m.roughness=wet?.55:.92;
+ }
+ // 김 서림: 내부 온도 46°C 이상에서 생기고 식으면 걷힘
+ let f=THREE.MathUtils.clamp((S.temp-46)/30,0,.72);if(k==='dry')f=Math.max(f,.35);if(S.door)f=0;
+ fogO+=(f-fogO)*Math.min(1,dt*(f>fogO?.6:.35));M.fog.opacity=fogO;
+ // 오류 위치 강조: 4C 급수(뒷면 밸브), 5C 배수(하단 배수 필터)
+ const err=cy&&!cy.done&&cy.err,pulse=.5+.4*Math.sin(now/170);
+ M.inlet.emissiveIntensity=err==='4C'?pulse:0;M.drain.emissiveIntensity=(S.drainClog||err==='5C')?pulse*.9:0;
 }
 
 /* ---------- 매 프레임: S를 읽어 표현 ---------- */
@@ -1477,7 +1635,9 @@ function frame(now){
  // 마감 색
  if(S.finish!==lastFinish)applyFinish(S.finish);
  // 도어: S.door + 거부 시 덜컥
- doorA+=((S.door?CFG.door.maxDeg*Math.PI/180:0)-doorA)*Math.min(1,dt*4);
+ if(prevAuto&&!S.autoDoorAt&&S.door&&!prevDoor)ajar=true; // 자동 문 열림은 살짝만
+ if(!S.door)ajar=false;prevAuto=S.autoDoorAt;prevDoor=S.door;
+ doorA+=((S.door?(ajar?16:CFG.door.maxDeg)*Math.PI/180:0)-doorA)*Math.min(1,dt*4);
  let tug=0;if(shakeT>0){shakeT-=dt;tug=Math.abs(Math.sin(shakeT*42))*.035*(shakeT/.5)}
  P.door.rotation.y=P.hs*(doorA+tug);P.hinge.visible=doorA>.04;P.hingeD.forEach(m=>m.visible=doorA>.04); // 닫히면 힌지 안 보임
  M.led.emissiveIntensity=(!S.door&&window.doorBlock&&doorBlock())?2.2:0;
@@ -1485,13 +1645,14 @@ function frame(now){
  const vis=Math.min(S.rpm,1400),st=S.cycle&&!S.cycle.done&&window.curStage&&curStage();
  const dir=st&&['wash','rinse','soak'].includes(st.k)?(Math.sign(Math.sin(now/1600))||1):1;
  ang+=(vis>300?Math.min(vis/60,9)*2*Math.PI*.35:vis/60*2*Math.PI)*dt*dir;P.drum.rotation.z=-ang;
+ const wDrum=dt>0?-(ang-lastAng)/dt:0;lastAng=ang;
  P.light.intensity+=((S.power&&(S.light||S.door)?1.4:0)-P.light.intensity)*Math.min(1,dt*6);
  // 세제함·하단 덮개·필터
  drawerZ+=((S.boxIn?0:260)-drawerZ)*Math.min(1,dt*5);P.drawer.position.z=drawerZ;
  P.detMain.scale.y=Math.max(.5,S.det.main.ml/S.det.main.cap*150);P.detSel.scale.y=Math.max(.5,S.det.sel.ml/S.det.sel.cap*150);
  baseA+=((baseOpen?1.2:0)-baseA)*Math.min(1,dt*5);P.base.rotation.x=baseA;
  lintZ+=((S.lint?0:260)-lintZ)*Math.min(1,dt*5);P.lint.position.z=CFG.frontZ-170+lintZ;P.lint.visible=baseA>.05||!S.lint;P.drainG.visible=baseA>.05;
- M.drain.emissiveIntensity=S.drainClog?.45+.35*Math.sin(now/180):0;
+ updateMotion(dt,now,vis,st,wDrum);
  // 화면: 정면에서 벗어나면 흐려지고, 35° 넘으면 터치 막음
  if(DEV.dataset.host==='css3d'){
   _s.set(devObj.position.x,devObj.position.y,devObj.position.z);_c.subVectors(camera.position,_s).normalize();
@@ -1499,7 +1660,7 @@ function frame(now){
   if(op!==cssOp){wrap.style.opacity=op;cssOp=op}
   if(touch!==cssTouch){wrap.classList.toggle('noTouch',!touch);cssTouch=touch}
  }
- renderer.render(scene,camera);css.render(cssScene,camera);
+ if(mode!=='B'){renderer.render(scene,camera);css.render(cssScene,camera)}
  // 느린 기기면 한 번만 품질 낮춤
  if(!lowQ){fpsN++;fpsT+=dt;if(fpsN===120){lowQ=fpsT/fpsN>.03?'low':'ok';
   if(lowQ==='low'){renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));M.window.transmission=0;M.window.transparent=true;M.window.opacity=.35;M.window.needsUpdate=true}}}
