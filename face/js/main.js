@@ -11,6 +11,7 @@ import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.j
 import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js';
 import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js';
 import { FaceAnimator } from './animator.js';
+import { buildGarment, GARMENT_COLORS, GARMENT_STYLES } from './garment.js';
 
 const $ = id => document.getElementById(id);
 const ASSETS = window.__ASSETS || null;
@@ -59,7 +60,7 @@ controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistan
 controls.autoRotateSpeed = 1.2; controls.screenSpacePanning = true;
 const VIEWS = {
   front: { p: [0, 0.12, 3.3], t: [0, 0.06, 0] }, side: { p: [3.3, 0.12, 0.05], t: [0, 0.06, 0] }, back: { p: [0, 0.12, -3.3], t: [0, 0.06, 0] },
-  q45: { p: [2.3, 0.4, 2.3], t: [0, 0.06, 0] }, face: { p: [0, 0.08, 2.45], t: [0, 0.06, 0.2] }, full: { p: [0, 0.05, 4.8], t: [0, -0.05, 0] },
+  q45: { p: [2.3, 0.4, 2.3], t: [0, 0.06, 0] }, face: { p: [0, 0.08, 2.45], t: [0, 0.06, 0.2] }, full: { p: [0, -0.1, 5.6], t: [0, -0.4, 0] },
 };
 camera.position.set(...VIEWS.front.p); controls.target.set(...VIEWS.front.t);
 let camAnim = null;
@@ -155,11 +156,23 @@ function rebuildRig(lm) {
   rig = buildRig(srcGeom, lm, { material: skinMat, morphNormals: !isMobile && state.quality !== 'low', log: s => logs.push(s) });
   rig.bones.rootRestY = rig.bones.root.position.y;
   scene.add(rig.group);
+  applyGarment();
   const i = rig.info;
   $('rigInfo').innerHTML = `<b>리그 정보</b><br>얼굴 변형 메시 ${i.faceVerts.toLocaleString()} 버텍스 · 정적 메시 ${i.restVerts.toLocaleString()} 버텍스<br>삼각형 ${i.tris.toLocaleString()} (원본 1,074,502)<br>모프 타깃 ${rig.morphNames.length}개 (ARKit 52 매핑 + 보정 3) · 본 3개<br>안구 반지름 ${(i.eyeR * 176).toFixed(1)}mm 환산 · 생성 ${(performance.now() - t0).toFixed(0)}ms`;
   console.log(logs.join('\n'));
   return rig;
 }
+
+// ---------------------------------------------------------------- clothing / virtual upper body
+const garmentPref = Object.assign({ style: 'crew', color: 'charcoal' }, store.get(LS.settings, {}).garment || {});
+let garment = null;
+function applyGarment() {
+  if (garment) { garment.removeFromParent(); garment.disposeAll(); garment = null; }
+  if (!rig || garmentPref.style === 'none') return;
+  garment = buildGarment(srcGeom.attributes.position.array, rig.skeleton, garmentPref);
+  rig.group.add(garment);
+}
+function saveGarment() { store.set(LS.settings, { ...store.get(LS.settings, {}), garment: garmentPref }); }
 
 async function init() {
   if (location.protocol === 'file:' && !ASSETS) {
@@ -527,6 +540,12 @@ function buildUI() {
   $('btnAutoRot').onclick = () => { controls.autoRotate = !controls.autoRotate; $('btnAutoRot').classList.toggle('on', controls.autoRotate); };
   $('btnCamReset').onclick = () => { controls.autoRotate = false; $('btnAutoRot').classList.remove('on'); goView('front'); };
   $('selLight').onchange = e => setLighting(e.target.value);
+  const sg = $('selGarment'), sc = $('selGarmentColor');
+  for (const [k, v] of Object.entries(GARMENT_STYLES)) sg.add(new Option(v, k));
+  for (const [k, v] of Object.entries(GARMENT_COLORS)) sc.add(new Option(v.ko, k));
+  sg.value = garmentPref.style; sc.value = garmentPref.color;
+  sg.onchange = () => { garmentPref.style = sg.value; saveGarment(); applyGarment(); };
+  sc.onchange = () => { garmentPref.color = sc.value; saveGarment(); if (garment) garment.setColor(sc.value); };
   $('btnBg').onclick = () => { state.bg = state.bg === 'dark' ? 'light' : 'dark'; document.body.className = state.bg; scene.background = BG[state.bg]; $('btnBg').classList.toggle('on', state.bg === 'light'); };
   const st = $('selTex'); const names = { 1: '텍스처 1K', 2: '텍스처 2K', 4: '텍스처 4K', 8: '텍스처 8K (Ultra)' };
   TEX_LEVELS.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = names[l]; st.appendChild(o); }); st.value = state.texLevel;
@@ -605,4 +624,4 @@ loop();
 init().catch(e => fatal(e.message || String(e)));
 
 // debug / automation hooks
-window.studio = { skinTone, skinDebug, setGloss, advance(sec, fps = 60) { for (let i = 0; i < sec * fps; i++) { const tr = driver.state === 'speaking' ? driver.update(1 / fps) : null; animator.viseme = tr ? tr.evaluate(tr.time, visOut) : animator.viseme; animator.update(1 / fps, rig, camera); } renderer.render(scene, camera); }, get rig() { return rig; }, animator, driver, scene, camera, controls, renderer, goView, setLighting, selectExpr, exportGLB, state, textToVisemes: null };
+window.studio = { get garment() { return garment; }, garmentPref, applyGarment, skinTone, skinDebug, setGloss, advance(sec, fps = 60) { for (let i = 0; i < sec * fps; i++) { const tr = driver.state === 'speaking' ? driver.update(1 / fps) : null; animator.viseme = tr ? tr.evaluate(tr.time, visOut) : animator.viseme; animator.update(1 / fps, rig, camera); } renderer.render(scene, camera); }, get rig() { return rig; }, animator, driver, scene, camera, controls, renderer, goView, setLighting, selectExpr, exportGLB, state, textToVisemes: null };
