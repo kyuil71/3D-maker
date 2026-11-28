@@ -1507,6 +1507,7 @@ window.__scrMap=(cx,cy)=>{
 /* ---------- 시점 ---------- */
 function fitDist(w,h){const vf=THREE.MathUtils.degToRad(camera.fov)/2,hf=Math.atan(Math.tan(vf)*camera.aspect);return Math.max(h/2/Math.tan(vf),w/2/Math.tan(hf))}
 const VIEWS={
+ start:()=>({t:[0,555,0],dir:[-.43,.4,.81],d:fitDist(900,1330),center:1,fit:.9}), // 처음 시작 시점: 왼쪽 앞 위에서 내려다보기(옆판·윗면이 보이게)
  home:()=>({t:[0,555,230],dir:[0,.25,1],d:fitDist(900,1420),center:1}), // 전체 보기: 정면에서 살짝 내려다보기, 본체를 화면 정가운데로 자동 보정 // 전체 보기: 정면에서 살짝 내려다보고, 본체가 화면 가운데(높이의 약 85%)
  front:()=>({t:[0,520,0],dir:[0,.08,1],d:fitDist(900,1600)}),
  left:()=>({t:[0,540,0],dir:[-1,.12,.06],d:fitDist(1250,1650)}),
@@ -1528,10 +1529,11 @@ function flyTo(name){
  const v=VIEWS[name]();const t=new THREE.Vector3(...v.t),p=v.p?new THREE.Vector3(...v.p):new THREE.Vector3(...v.dir).normalize().multiplyScalar(v.d).add(t);
  if(v.center){ // 본체 모서리 8개의 화면 위치로 중심을 맞춤(화면 비율과 상관없이 가운데)
   const cam=camera.clone(),bx=[];for(const x of[-343,343])for(const y of[0,CFG.H])for(const z of[CFG.back,CFG.frontZ+CFG.door.depth])bx.push(new THREE.Vector3(x,y,z));
-  for(let it=0;it<3;it++){cam.position.copy(p);cam.lookAt(t);cam.updateMatrixWorld();let y0=1e9,y1=-1e9,x0=1e9,x1=-1e9;
+  for(let it=0;it<(v.fit?8:3);it++){cam.position.copy(p);cam.lookAt(t);cam.updateMatrixWorld();let y0=1e9,y1=-1e9,x0=1e9,x1=-1e9;
    for(const c of bx){const q=c.clone().project(cam);x0=Math.min(x0,q.x);x1=Math.max(x1,q.x);y0=Math.min(y0,q.y);y1=Math.max(y1,q.y)}
    const dyN=(y0+y1)/2,dxN=(x0+x1)/2,dist=p.distanceTo(t),hh=Math.tan(THREE.MathUtils.degToRad(cam.fov)/2)*dist,up=new THREE.Vector3(0,1,0).applyQuaternion(cam.quaternion),rt=new THREE.Vector3(1,0,0).applyQuaternion(cam.quaternion);
-   const off=up.multiplyScalar(dyN*hh).add(rt.multiplyScalar(dxN*hh*cam.aspect));t.add(off);p.add(off)}}
+   const off=up.multiplyScalar(dyN*hh).add(rt.multiplyScalar(dxN*hh*cam.aspect));t.add(off);p.add(off);
+   if(v.fit){const k=Math.max((y1-y0)/2/v.fit,(x1-x0)/2/v.fit);p.sub(t).multiplyScalar(k).add(t)}}} // fit: 본체가 화면의 fit 비율을 채우도록 거리 조정
  const ch=$('#views3d'),H=renderer.domElement.clientHeight;if(ch&&!ch.hidden&&H){const cover=Math.max(0,renderer.domElement.getBoundingClientRect().bottom-ch.getBoundingClientRect().top);
   const sh=p.distanceTo(t)*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*2*(cover/2)/H;t.y-=sh;p.y-=sh}
  fly={t0:performance.now(),dur:700,fp:camera.position.clone(),ft:controls.target.clone(),tp:p,tt:t};
@@ -1583,7 +1585,7 @@ function dock(d){
    D 관찰: UI 없이 기계만, 자동 회전 */
 let mode='A',autoSpin=false;
 const MODE_VIEW={A:'home',C:'door',D:'home'};
-function setMode(m){
+function setMode(m,view){
  if(!'ABCD'.includes(m))return;mode=m;
  document.body.classList.remove('mA','mB','mC','mD');document.body.classList.add('m'+m);
  if(m==='B'||m==='C')mountDevice('overlay');else{$('#big2d').hidden=true;mountDevice('css3d')}
@@ -1591,7 +1593,7 @@ function setMode(m){
  document.querySelectorAll('#views3d [data-view]').forEach(b=>b.hidden=!(b.dataset.in||'A').includes(m));
  autoSpin=m==='D';controls.autoRotate=autoSpin;controls.autoRotateSpeed=1.2;
  setDock();
- requestAnimationFrame(()=>{resize();window.fit&&fit();if(MODE_VIEW[m])flyTo(MODE_VIEW[m])});
+ requestAnimationFrame(()=>{resize();window.fit&&fit();if(view||MODE_VIEW[m])flyTo(view||MODE_VIEW[m])});
  window.__mode=m;
 }
 function resize(){const h=$('#v3d'),w=h.clientWidth,hh=h.clientHeight;if(!w||!hh)return;renderer.setSize(w,hh);css.setSize(w,hh);camera.aspect=w/hh;camera.updateProjectionMatrix()}
@@ -1625,7 +1627,7 @@ function init(){
 
  controls=new OrbitControls(camera,host); // 캔버스는 입력을 통과시키므로 바깥 컨테이너에서 회전·확대
  Object.assign(controls,{enableDamping:true,dampingFactor:.08,minDistance:CFG.cam.min,maxDistance:CFG.cam.max,maxPolarAngle:Math.PI*.6,screenSpacePanning:true,rotateSpeed:.8,zoomSpeed:.9});
- const v=VIEWS.home();controls.target.set(...v.t);camera.position.copy(new THREE.Vector3(...v.dir).normalize().multiplyScalar(v.d).add(controls.target));controls.update();
+ const v=VIEWS.start();controls.target.set(...v.t);camera.position.copy(new THREE.Vector3(...v.dir).normalize().multiplyScalar(v.d).add(controls.target));controls.update();
 
  // 탭(짧게 누르기)만 본체 조작으로 처리, 끌기는 회전
  let down=null;const cv=renderer.domElement,ray=new THREE.Raycaster(),nv=new THREE.Vector2();
@@ -1640,7 +1642,7 @@ function init(){
  addEventListener('wm:change',e=>{if(e.detail&&e.detail.what==='doorDenied')shakeT=.5});
  addEventListener('resize',resize);
  addEventListener('wm:change',e=>{const w=e.detail&&e.detail.what;if(w==='error'&&mode==='C'&&S.cycle&&S.cycle.err){if(S.cycle.err==='5C'){baseOpen=true;flyTo('base')}else flyTo('back')}});
- buildMotion();setMode('A');setGlass();initDeco();renderReadout();
+ buildMotion();setMode('A','start');setGlass();initDeco();renderReadout();
  window.__3d={THREE,camera,renderer,devObj,P,CFG,AU}; // 점검용
  requestAnimationFrame(t=>{last=t;requestAnimationFrame(frame)});
 }
