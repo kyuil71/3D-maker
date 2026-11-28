@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Serene · Facial Animation Studio</title>
-<link rel="stylesheet" href="css/studio.css?v=20261127g">
+<link rel="stylesheet" href="css/studio.css?v=20261128a">
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body class="dark">
@@ -169,6 +169,7 @@
       <div class="slider"><label>속도 <output id="oRate">1.0</output></label><input type="range" id="rngRate" min="50" max="200" value="100"></div>
       <div class="slider"><label>높낮이 <output id="oPitch">1.0</output></label><input type="range" id="rngPitch" min="0" max="200" value="100"></div>
       <div class="slider"><label>볼륨 <output id="oVol">100%</output></label><input type="range" id="rngVol" min="0" max="100" value="100"></div>
+      <div class="slider"><label>말할 때 입 벌림 <output id="oMouth">100%</output></label><input type="range" id="rngMouth" min="50" max="150" value="100" title="100% = 실제 대화 수준(아 모음 약 1cm)"></div>
       <div class="slider"><label>타이밍 보정 <output id="oCal">1.00</output></label><input type="range" id="rngCal" min="70" max="140" value="100" title="음성별 말하기 속도 차이 보정"></div>
     </div>
     <div class="lipmode"><span id="lipBadge" class="badge">대기</span><div id="visBar"></div></div>
@@ -180,7 +181,8 @@
   <div class="dhead"><button id="dBack" class="hidden">‹ 메뉴</button><b id="dTitle">메뉴</b><button id="dClose" aria-label="닫기">✕</button></div>
   <div id="dHome"></div>
   <div id="dBody" class="hidden"></div>
+  <div id="dRail" class="hidden"><i id="dThumb"></i></div>
 </aside>
-<script type="module" src="js/main.js?v=20261127g"></script>
+<script type="module" src="js/main.js?v=20261128a"></script>
 </body>
 </html>

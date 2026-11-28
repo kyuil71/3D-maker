@@ -256,13 +256,14 @@ export class AudioLipSync {
     const L = this.level;
     if (fric > 0.45 && L > 0.05) { Object.assign(o, VISEMES.SS.w); for (const k in o) o[k] *= Math.min(1, L * 2); }
     else {
-      o.jawOpen = L * (0.18 + 0.55 * open);
+      // conversational speech: incisal opening rarely exceeds ~10 mm (≈ jawOpen 0.29); louder → slightly more
+      o.jawOpen = Math.min(0.32, Math.pow(L, 1.15) * (0.08 + 0.26 * Math.min(1, open * 1.6)));
       const round = Math.max(0, 0.45 - bright) * 2;  // low F2 → rounded (오/우)
       const spread = Math.max(0, bright - 0.55) * 2; // high F2 → spread (이/에)
       o.mouthFunnel = L * round * 0.6; o.mouthPucker = L * round * 0.45;
       o.mouthStretchLeft = o.mouthStretchRight = L * spread * 0.5;
-      o.mouthUpperUpLeft = o.mouthUpperUpRight = L * 0.15;
-      o.mouthLowerDownLeft = o.mouthLowerDownRight = L * 0.25;
+      o.mouthUpperUpLeft = o.mouthUpperUpRight = L * 0.08;
+      o.mouthLowerDownLeft = o.mouthLowerDownRight = L * 0.12;
     }
     o._level = L;
     return o;

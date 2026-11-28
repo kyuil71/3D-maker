@@ -5,14 +5,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildRig, ARKIT_52 } from './rig.js?v=20261127g';
-import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261127g';
-import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261127g';
-import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261127g';
-import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261127g';
-import { FaceAnimator } from './animator.js?v=20261127g';
-import { initAI } from './ailive.js?v=20261127g';
-import { buildGarment } from './garment.js?v=20261127g';
+import { buildRig, ARKIT_52 } from './rig.js?v=20261128a';
+import { DEFAULT_LANDMARKS } from './landmarks.js?v=20261128a';
+import { EXPRESSIONS, CONTROLLER, VISEMES, VISEME_LABELS } from './expressions.js?v=20261128a';
+import { SpeechDriver, AudioLipSync, parseVisemeJSON, externalTTS, detectLang } from './speech.js?v=20261128a';
+import { RuleEmotionAnalyzer, AIEmotionAnalyzer } from './emotion.js?v=20261128a';
+import { FaceAnimator } from './animator.js?v=20261128a';
+import { initAI } from './ailive.js?v=20261128a';
+import { buildGarment } from './garment.js?v=20261128a';
 
 const $ = id => document.getElementById(id);
 const ASSETS = window.__ASSETS || null;
@@ -562,6 +562,8 @@ function buildUI() {
   $('btnSpeak').onclick = () => { if ($('selMode').value === 'mic' && micStream) { stopAll(); $('btnSpeak').textContent = '▶ 말하기'; } else speak(); };
   $('btnPause').onclick = pauseAll; $('btnStop').onclick = () => stopAll();
   for (const [r, o, f] of [['rngRate', 'oRate', v => (v / 100).toFixed(1)], ['rngPitch', 'oPitch', v => (v / 100).toFixed(1)], ['rngVol', 'oVol', v => v + '%'], ['rngCal', 'oCal', v => (v / 100).toFixed(2)]]) $(r).oninput = e => { $(o).textContent = f(+e.target.value); if (r === 'rngVol' && audioEl) audioEl.volume = e.target.value / 100; };
+  { const sv = +(store.get(LS.settings, {}).mouthAmp ?? 100); $('rngMouth').value = sv; animator.visemeAmp = sv / 100; $('oMouth').textContent = sv + '%'; }
+  $('rngMouth').oninput = e => { animator.visemeAmp = e.target.value / 100; $('oMouth').textContent = e.target.value + '%'; store.set(LS.settings, { ...store.get(LS.settings, {}), mouthAmp: +e.target.value }); };
   $('selMode').onchange = e => { const m = e.target.value; $('boxVoice').classList.toggle('hidden', m !== 'tts'); $('boxAudio').classList.toggle('hidden', m !== 'audio'); $('boxExt').classList.toggle('hidden', m !== 'external'); stopAll(); };
   $('fileAudio').onchange = e => { const f = e.target.files[0]; if (!f) return; const el = ensureAudioEl(); el.src = URL.createObjectURL(f); visTrack = null; $('audioName').textContent = f.name + ' (분석 모드)'; };
   $('fileVis').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { visTrack = parseVisemeJSON(JSON.parse(await f.text())); $('audioName').textContent += ` + ${f.name} (정확 모드, ${visTrack.tokens.length} 비즘)`; } catch (err) { toast('비즘 JSON 해석 실패: ' + err.message); } };
@@ -651,6 +653,7 @@ function openDrawer(cat) {
 }
 function closeDrawer() { document.body.classList.remove('drawer-open'); if (state.calib) openCalib(false); }
 function showHome() {
+  $('dRail').classList.add('hidden');
   $('dHome').classList.remove('hidden'); $('dBody').classList.add('hidden'); $('dBack').classList.add('hidden'); $('dTitle').textContent = '메뉴';
 }
 function showCat(id) {
@@ -660,6 +663,43 @@ function showCat(id) {
   for (const nid of c.nodes) { const el = $(nid); if (el) body.appendChild(el); }
   $('dHome').classList.add('hidden'); body.classList.remove('hidden'); $('dBack').classList.remove('hidden'); $('dTitle').textContent = c.ko;
   body.scrollTop = 0; body.querySelectorAll('input[type=range]').forEach(fillRange);
+  $('dRail').classList.remove('hidden'); requestAnimationFrame(syncRail);
+}
+// vertical scroll lane for the drawer (drag the thumb or anywhere on the lane)
+function syncRail() {
+  const body = $('dBody'), rail = $('dRail'), th = $('dThumb'); if (rail.classList.contains('hidden')) return;
+  rail.style.top = (body.offsetTop + 8) + 'px'; rail.style.height = (body.clientHeight - 16) + 'px';
+  const H = rail.clientHeight, ratio = body.clientHeight / Math.max(1, body.scrollHeight);
+  rail.style.opacity = ratio >= 0.999 ? 0.35 : 1;
+  const tH = Math.max(48, H * Math.min(1, ratio)); th.style.height = tH + 'px';
+  const max = body.scrollHeight - body.clientHeight; th.style.transform = `translateY(${max > 0 ? (H - tH) * body.scrollTop / max : 0}px)`;
+}
+function bindRail() {
+  const body = $('dBody'), rail = $('dRail'), th = $('dThumb');
+  body.addEventListener('scroll', syncRail, { passive: true });
+  new ResizeObserver(syncRail).observe(body);
+  let drag = null;
+  const toScroll = y => { const r = rail.getBoundingClientRect(), tH = th.offsetHeight, max = body.scrollHeight - body.clientHeight; const t = Math.min(1, Math.max(0, (y - r.top - drag.off) / Math.max(1, r.height - tH))); body.scrollTop = t * max; };
+  rail.addEventListener('pointerdown', e => {
+    const tr = th.getBoundingClientRect(); drag = { off: (e.clientY >= tr.top && e.clientY <= tr.bottom) ? e.clientY - tr.top : th.offsetHeight / 2 };
+    rail.setPointerCapture(e.pointerId); rail.classList.add('drag'); toScroll(e.clientY); e.preventDefault();
+  });
+  rail.addEventListener('pointermove', e => { if (drag) toScroll(e.clientY); });
+  const end = () => { drag = null; rail.classList.remove('drag'); };
+  rail.addEventListener('pointerup', end); rail.addEventListener('pointercancel', end);
+}
+// touch guard: a vertical swipe that starts on a slider scrolls the menu and never changes the value
+function guardRanges() {
+  let g = null;
+  document.addEventListener('pointerdown', e => { const el = e.target; if (el.type === 'range' && e.pointerType !== 'mouse') g = { el, v: el.value, x: e.clientX, y: e.clientY, h: false }; }, true);
+  document.addEventListener('pointermove', e => {
+    if (!g || g.h) return; const dx = Math.abs(e.clientX - g.x), dy = Math.abs(e.clientY - g.y);
+    if (dx > 8 && dx > dy) g.h = true;                       // clearly horizontal → a real slider drag
+    else if (dy > 8 && dy > dx) revert();                     // vertical → scrolling, undo any jump
+  }, true);
+  const revert = () => { if (!g) return; const { el, v } = g; g = null; if (el.value !== v) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } el.blur(); };
+  document.addEventListener('pointercancel', () => { if (g && !g.h) revert(); g = null; }, true);
+  document.addEventListener('pointerup', () => { g = null; }, true);
 }
 function restoreAll() { for (const [id, h] of homes) { const el = $(id); if (el && el.parentNode !== h.parent) h.parent.insertBefore(el, h.marker); } }
 function setupDrawer() {
@@ -673,6 +713,7 @@ function setupDrawer() {
     b.innerHTML = `<span>${c.ko}${c.id === 'ai' ? '<span class="st">연결 전</span>' : ''}</span><span class="ar">›</span>`;
     b.onclick = () => showCat(c.id); home.appendChild(b);
   }
+  bindRail(); guardRanges();
   $('menuBtn').onclick = () => openDrawer();
   $('dClose').onclick = closeDrawer; $('drawerShade').onclick = closeDrawer;
   $('dBack').onclick = showHome;
