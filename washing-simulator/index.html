@@ -330,7 +330,7 @@ body.in3d .ui3d[hidden]{display:none!important}
 #load3d.out{opacity:0;pointer-events:none}
 
 /* ----- 보기 모드 (3D-BRIDGE) ----- */
-body{--dockH:calc(118px + env(safe-area-inset-bottom,0px));--split:40vh;--splitW:56vw}
+body{--dockH:calc(62px + env(safe-area-inset-bottom,0px));--split:40vh;--splitW:56vw}
 body.mB #v3d,body.mB #views3d{display:none!important}
 body.mB .tools [data-d=views],body.mB .tools [data-d=xray]{display:none}
 body.mC #v3d{top:var(--split);bottom:var(--dockH)}
@@ -411,8 +411,7 @@ body:not(.mA) #dock3d .opv{display:none}
 </div>
 <nav id="dock3d" class="ui3d" aria-label="3D 보기 도구">
   <div class="rows">
-  <div class="tools"><button data-view="op1" class="opv">화면 조작1</button><button data-view="op2" class="opv">화면 조작2</button><button data-d="views">시점</button><button data-d="xray" aria-pressed="false">내부 보기</button><button data-d="lamp" aria-pressed="false">드럼 조명</button><button data-d="sheet">실물 조작</button><button data-d="deco">CMF</button><button data-d="hud">상태</button></div>
-  <div class="modes" role="tablist" aria-label="보기 모드"><button data-m="A" role="tab">전체 보기</button><button data-m="B" role="tab">화면만</button><button data-m="C" role="tab">화면+본체</button><button data-m="D" role="tab">관찰</button></div>
+  <div class="tools"><button data-view="op1" class="opv">화면 조작1</button><button data-view="op2" class="opv">화면 조작2</button><button data-d="home">전체 보기</button><button data-d="lamp" aria-pressed="false">드럼 조명</button><button data-d="sheet">실물 조작</button><button data-d="deco">CMF</button></div>
   </div>
 </nav>
 <div id="dfloat" class="ui3d" hidden><button data-d="spin" aria-pressed="true">자동 회전</button><button data-m="A">관찰 끝내기</button></div>
@@ -1563,6 +1562,7 @@ function dock(d){
  if(d==='views')$('#views3d').hidden=!$('#views3d').hidden;
  if(d==='xray')setXray(!xray);
  if(d==='spin'){autoSpin=!autoSpin;controls.autoRotate=autoSpin}
+ if(d==='home'){if(mode!=='A')setMode('A');else flyTo('home');$('#sheet').hidden=true;$('#deco').hidden=true} // 전체 보기
  if(d==='lamp'){drumLamp=!drumLamp;P.fill.visible=drumLamp;setGlass()}
  if(d==='sheet'){const s=$('#sheet');s.hidden=!s.hidden;if(!s.hidden){$('#deco').hidden=true;renderBench()}}
  if(d==='deco'){const s=$('#deco');s.hidden=!s.hidden;if(!s.hidden){$('#sheet').hidden=true;renderDeco()}}
