@@ -1294,7 +1294,8 @@ const M={
  side:new THREE.MeshPhysicalMaterial({color:0x1d1f22,metalness:.2,roughness:.55,envMapIntensity:.45,normalMap:embossNormal(),normalScale:new THREE.Vector2(1.3,1.3),clearcoat:.15,clearcoatRoughness:.4}),
  dark:new THREE.MeshPhysicalMaterial({color:0x1f2124,metalness:.1,roughness:.7,envMapIntensity:.4}),
  liner:new THREE.MeshStandardMaterial({color:0x0b0c0d,roughness:.95,side:THREE.BackSide}),
- glass:new THREE.MeshPhysicalMaterial({color:0x000000,metalness:0,roughness:0,clearcoat:1,clearcoatRoughness:0,reflectivity:.5,specularIntensity:1,envMapIntensity:.8,side:THREE.DoubleSide}), // 도어 링: LCD 같은 순수 블랙 + 거울 같은 광택
+ glass:new THREE.MeshPhysicalMaterial({color:0x2b2d30,metalness:1,roughness:.14,clearcoat:0,side:THREE.DoubleSide}), // 도어 링 기본값: 유광 금속 + 블랙(#2B2D30)
+ lcdGlass:new THREE.MeshPhysicalMaterial({color:0x000000,metalness:0,roughness:0,clearcoat:1,clearcoatRoughness:0,reflectivity:.5,specularIntensity:1,envMapIntensity:.8}), // LCD 베젤 블랙 글라스
  window:new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0,transmission:1,thickness:4,ior:1.5,envMapIntensity:.45,specularIntensity:.6,attenuationColor:new THREE.Color(0xf2f6f8),attenuationDistance:2000,side:THREE.DoubleSide}), // 맑은 강화유리
  rubber:new THREE.MeshPhysicalMaterial({color:0x8b9196,roughness:.78,side:THREE.DoubleSide}),
  frontC:new THREE.MeshPhysicalMaterial({color:0xb5b8ba,side:THREE.DoubleSide}), // 도어 자리(원형 함몰)
@@ -1359,7 +1360,7 @@ function build(){
  // 화면 베젤(블랙 글라스). 위에 실제 7인치 UI(CSS3D)가 겹쳐짐
  const SC=CFG.screen;
  mesh(new RoundedBoxGeometry(SC.modW+3,SC.modH+3,4,2,4),M.frontB,{x:SC.cx,y:SC.cy,z:frontZ+1.5,shadow:false}); // 얇은 실버 테두리
- P.bezel=mesh(new RoundedBoxGeometry(SC.modW,SC.modH,5,2,3),M.glass.clone(),{x:SC.cx,y:SC.cy,z:frontZ+2.5,act:'bezel'});
+ P.bezel=mesh(new RoundedBoxGeometry(SC.modW,SC.modH,5,2,3),M.lcdGlass,{x:SC.cx,y:SC.cy,z:frontZ+2.5,act:'bezel'});
  {const hw=DEV_W*SC.pxmm-.8,hh=DEV_H*SC.pxmm-.8,hs_=rrPath(new THREE.Shape(),-hw/2,-hh/2,hw,hh,1.6); // LCD 자리 투명 구멍(알파 0을 그대로 기록)
   P.hole=new THREE.Mesh(new THREE.ShapeGeometry(hs_,8),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,blending:THREE.NoBlending,depthWrite:true}));
   P.hole.position.set(devCX,devCY,frontZ+5.3);P.root.add(P.hole)}
@@ -1818,7 +1819,7 @@ const PARTS={
  drawer:{name:'세제함',mats:()=>[M.tray]},
  hinge:{name:'힌지·필터',mats:()=>[M.hinge,M.plastic]}
 };
-const DEF={};let curPart='front';const partSt={};
+const DEF={};let curPart='front';const DEF_SEL={ring:{col:'#2B2D30',mat:'gmetal'}};const partSt=JSON.parse(JSON.stringify(DEF_SEL)); // 기본 선택 표시
 function snapDefaults(){for(const id in PARTS)DEF[id]=PARTS[id].mats().map(m=>({color:m.color.getHex(),metalness:m.metalness,roughness:m.roughness,cc:m.clearcoat||0,ccr:m.clearcoatRoughness||0,irid:m.iridescence||0,anis:m.anisotropy||0,rm:m.roughnessMap,bm:m.bumpMap}))}
 function applyPart(id,col,mat){
  const p=PARTS[id],k=mat&&MATS[mat];
@@ -1830,7 +1831,7 @@ function applyPart(id,col,mat){
  partSt[id]={col:col||(partSt[id]&&partSt[id].col),mat:mat||(partSt[id]&&partSt[id].mat)};
  if(id==='front')lastFinish=S.finish; // 기존 마감 선택이 바로 덮어쓰지 않게
 }
-function resetPart(id){PARTS[id].mats().forEach((m,i)=>{const d=DEF[id][i];m.color.setHex(d.color);m.metalness=d.metalness;m.roughness=d.roughness;m.clearcoat=d.cc;m.clearcoatRoughness=d.ccr;m.iridescence=d.irid;m.anisotropy=d.anis;m.roughnessMap=d.rm;m.bumpMap=d.bm;m.needsUpdate=true});delete partSt[id];if(id==='front')applyFinish(S.finish)}
+function resetPart(id){PARTS[id].mats().forEach((m,i)=>{const d=DEF[id][i];m.color.setHex(d.color);m.metalness=d.metalness;m.roughness=d.roughness;m.clearcoat=d.cc;m.clearcoatRoughness=d.ccr;m.iridescence=d.irid;m.anisotropy=d.anis;m.roughnessMap=d.rm;m.bumpMap=d.bm;m.needsUpdate=true});delete partSt[id];if(DEF_SEL[id])partSt[id]={...DEF_SEL[id]};if(id==='front')applyFinish(S.finish)}
 
 /* ---------- 환경 조명 ---------- */
 const LIGHTS={
