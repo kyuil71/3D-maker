@@ -1361,6 +1361,9 @@ function build(){
  const SC=CFG.screen;
  mesh(new RoundedBoxGeometry(SC.modW+3,SC.modH+3,4,2,4),M.frontB,{x:SC.cx,y:SC.cy,z:frontZ+1.5,shadow:false}); // 얇은 실버 테두리
  P.bezel=mesh(new RoundedBoxGeometry(SC.modW,SC.modH,5,2,3),M.glass.clone(),{x:SC.cx,y:SC.cy,z:frontZ+2.5,act:'bezel'});
+ {const hw=DEV_W*SC.pxmm-.8,hh=DEV_H*SC.pxmm-.8,hs_=rrPath(new THREE.Shape(),-hw/2,-hh/2,hw,hh,1.6); // LCD 자리 투명 구멍(알파 0을 그대로 기록)
+  P.hole=new THREE.Mesh(new THREE.ShapeGeometry(hs_,8),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,blending:THREE.NoBlending,depthWrite:true}));
+  P.hole.position.set(devCX,devCY,frontZ+5.3);P.root.add(P.hole)}
 
  // ── 오른쪽 위: 먼지 필터 덮개(왼쪽 경첩, 오른쪽을 눌러 엶) + 먼지 필터 + 수동 유연제함 (매뉴얼 19·51·54쪽)
  M.cavity=new THREE.MeshStandardMaterial({color:0x2b2e31,roughness:.8,side:THREE.BackSide});
@@ -1608,21 +1611,24 @@ function init(){
 
  // CSS3D: 기존 #device를 그대로 옮겨 붙임(복제하지 않음)
  css=new CSS3DRenderer();css.setSize(innerWidth,innerHeight);css.domElement.className='css3d';host.appendChild(css.domElement);
+ // LCD(HTML)를 3D 아래에 두고, 3D의 LCD 자리에 투명 구멍을 뚫어 비쳐 보이게 → 앞을 가리는 물체(먼지 필터 덮개·도어)가 LCD를 제대로 가림
+ css.domElement.style.zIndex='0';Object.assign(renderer.domElement.style,{position:'absolute',inset:'0',zIndex:'1',pointerEvents:'none'});
  cssScene=new THREE.Scene();wrap=document.createElement('div');wrap.className='dev3d';
  devObj=new CSS3DObject(wrap);devObj.scale.setScalar(CFG.screen.pxmm);devObj.position.set(devCX,devCY,CFG.frontZ+5.2);cssScene.add(devObj);
  mountDevice('css3d');
 
- controls=new OrbitControls(camera,renderer.domElement);
+ controls=new OrbitControls(camera,host); // 캔버스는 입력을 통과시키므로 바깥 컨테이너에서 회전·확대
  Object.assign(controls,{enableDamping:true,dampingFactor:.08,minDistance:CFG.cam.min,maxDistance:CFG.cam.max,maxPolarAngle:Math.PI*.6,screenSpacePanning:true,rotateSpeed:.8,zoomSpeed:.9});
  const v=VIEWS.home();controls.target.set(...v.t);camera.position.copy(new THREE.Vector3(...v.dir).normalize().multiplyScalar(v.d).add(controls.target));controls.update();
 
  // 탭(짧게 누르기)만 본체 조작으로 처리, 끌기는 회전
  let down=null;const cv=renderer.domElement,ray=new THREE.Raycaster(),nv=new THREE.Vector2();
- cv.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now(),n:(down&&down.n||0)+1}});
- cv.addEventListener('pointerup',e=>{if(!down)return;const d=Math.hypot(e.clientX-down.x,e.clientY-down.y),dt=performance.now()-down.t;down=null;if(d>8||dt>450)return;
+ for(const ev of ['pointerdown','wheel','touchstart'])wrap.addEventListener(ev,e=>e.stopPropagation(),{passive:true}); // LCD 터치는 회전으로 넘기지 않음
+ host.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now(),n:(down&&down.n||0)+1}});
+ host.addEventListener('pointerup',e=>{if(!down)return;const d=Math.hypot(e.clientX-down.x,e.clientY-down.y),dt=performance.now()-down.t;down=null;if(d>8||dt>450)return;
   const r=cv.getBoundingClientRect();nv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(nv,camera);
   const h=ray.intersectObjects(pick,false)[0];if(h){S.realIdle=0;act(h.object.userData.act,h.object)}});
- cv.addEventListener('pointercancel',()=>{down=null});
+ host.addEventListener('pointercancel',()=>{down=null});
 
  document.addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b)dock(b.dataset.d);const w=e.target.closest('[data-view]');if(w)flyTo(w.dataset.view);const m=e.target.closest('[data-m]');if(m)setMode(m.dataset.m)});
  addEventListener('wm:change',e=>{if(e.detail&&e.detail.what==='doorDenied')shakeT=.5});
@@ -1916,13 +1922,13 @@ function frame(now){
  baseA+=((baseOpen?1.45:0)-baseA)*Math.min(1,dt*5);P.base.rotation.x=baseA;
  lintZ+=((S.lint?0:300)-lintZ)*Math.min(1,dt*5);P.lint.position.z=CFG.frontZ-14+lintZ;P.lint.visible=flapA>.05||!S.lint;P.drainG.visible=baseA>.05;
  updateMotion(dt,now,vis,st,wDrum);soundUpdate(dt,now,st&&st.k);
- // 화면: 정면에서 벗어나면 흐려지고, 약 53° 넘으면 터치 막음
+ // 화면: 뒤에서 보면 숨김, 약 53° 넘으면 터치 막음 (가림은 3D의 LCD 구멍이 처리)
  if(DEV.dataset.host==='css3d'){
   _s.set(devObj.position.x,devObj.position.y,devObj.position.z);_c.subVectors(camera.position,_s).normalize();
-  const c=_c.z,op=Math.round(THREE.MathUtils.smoothstep(c,.0,.22)*100)/100,touch=c>.6;
-  if(op!==cssOp){wrap.style.opacity=op;cssOp=op}
+  const c=_c.z,op=c>.02?1:0,touch=c>.6;
+  if(op!==cssOp){wrap.style.visibility=op?'visible':'hidden';cssOp=op}P.hole.visible=!!op;
   if(touch!==cssTouch){wrap.classList.toggle('noTouch',!touch);cssTouch=touch}
- }
+ }else P.hole.visible=false; // 화면만·화면+본체 모드에서는 3D 베젤만
  if(mode!=='B'){renderer.render(scene,camera);css.render(cssScene,camera)}
  // 느린 기기면 한 번만 품질 낮춤
  if(!lowQ){fpsN++;fpsT+=dt;if(fpsN===120){lowQ=fpsT/fpsN>.03?'low':'ok';
